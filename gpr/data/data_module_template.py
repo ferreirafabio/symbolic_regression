@@ -1,5 +1,5 @@
 
-
+import abc
 
 
 class AbstractDataModule():
@@ -20,15 +20,16 @@ class AbstractDataModule():
         self.create_validation_set()
 
 
-    @abstractmethod
+    @abc.abstractmethod
     def create_sample(self, rng=None):
         # return a tbl of n inference samples of the equation, and the target token sequnce of the latex equation
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def get_vocab(self):
+        raise NotImplementedError
         # return the vocabulary of the equation tokens
-        return ["1", "2", ... "sin", "cos", ..., "<EOS>"] # tokens for the late equation
+        #return ["1", "2", ... "sin", "cos", ..., "<EOS>"] # tokens for the late equation
 
     def get_vocab_size(self):
         return len(self.get_vocab())
