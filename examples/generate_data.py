@@ -33,6 +33,7 @@ data = mechanism(rng=rng, g=graph, n_observations_obs=100,
                  n_observations_int=0).x_obs[:, :, 0]
 # ndarray with shape (batch_size, len(x)+len(y))
 mant, exp = np.frexp(data)
+y = SinusoidalAdditiveFixed.get_mechanism_sympy()
 
 
 

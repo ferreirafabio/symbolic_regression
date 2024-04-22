@@ -1,4 +1,7 @@
 import numpy as np
+import sympy as sp
+from sympy import latex
+sp.init_printing()
 
 from gpr.synthetic.noise_scale import init_noise_dist
 from gpr.synthetic.utils import sample_recursive_scm
@@ -115,6 +118,12 @@ class SinusoidalAdditiveFixed(MechanismModel):
         self.noise_scale_heteroscedastic = noise_scale_heteroscedastic
         self.n_interv_vars = n_interv_vars
         self.interv_dist = interv_dist
+
+    @staticmethod
+    def get_mechanism_sympy():
+        var = sp.symbols('sin(2x)')
+        noise_var = sp.symbols('epsilon')
+        return latex(2 * var + 1 + noise_var)
 
     def __call__(self, rng, g, n_observations_obs, n_observations_int):
 
