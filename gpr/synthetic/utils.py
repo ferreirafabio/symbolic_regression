@@ -126,6 +126,8 @@ def sample_recursive_scm(*,
             if is_intervened[j]:
                 x[:, j] = interv_dist(rng, shape=z_j.shape)
             else:
+                #print(f[j])
+                #print(x, z_j, g[:, j])
                 x[:, j] = f[j](x=x, z=z_j, is_parent=g[:, j])
 
         # generate intervention mask
