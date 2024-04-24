@@ -120,7 +120,7 @@ ENV/
 # mypy
 .mypy_cache/
 runs/
-data/
+#data/
 *.tfrecord
 *.png
 *.pdf

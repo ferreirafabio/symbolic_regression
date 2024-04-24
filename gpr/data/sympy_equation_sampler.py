@@ -1,6 +1,7 @@
 import sympy as sp
 import random
 import pandas as pd
+import math
 
 
 def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numbers_variables=False):
@@ -38,12 +39,26 @@ def sample_and_evaluate(eq, vars_in_eq, num_samples=1000, real_numbers_realizati
         values_for_x = {var: 0 for var in vars_in_eq}
         
         # Update values for only the variables present in the equation
+        decomposition = {}
         used_vars = [var for var in vars_in_eq if var in eq.rhs.free_symbols]
         for var in used_vars:
-            values_for_x[var] = random.uniform(-10, 10) if real_numbers_realizations else random.randint(-10, 10)
+            realization = random.uniform(-10, 10) if real_numbers_realizations else random.randint(-10, 10)
+
+            mantissa, exponent = math.frexp(realization)
+            values_for_x[var] = realization
+            decomposition[f"{var}_mantissa"] = mantissa
+            decomposition[f"{var}_exponent"] = exponent
 
         computed_y_value = eq.rhs.subs(values_for_x).evalf()
-        data.append({**values_for_x, 'y': float(f"{computed_y_value:.1f}")})
+        y_mantissa, y_exponent = math.frexp(computed_y_value)
+        data_point = {
+            #**values_for_x, 
+            #'y': float(f"{computed_y_value:.1f}"), 
+            **decomposition,
+            'y_mantissa': y_mantissa, 
+            'y_exponent': y_exponent,
+        }
+        data.append(data_point)
     return pd.DataFrame(data)
 
 if __name__ == "__main__":
