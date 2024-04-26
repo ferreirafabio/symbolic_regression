@@ -28,8 +28,9 @@ def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numb
 
     y = sp.symbols('y')
     equation = sp.Eq(y, polynomial)
+    latex_equation = sp.latex(equation)
 
-    return equation, variables
+    return equation, variables, latex_equation
 
 
 
@@ -62,8 +63,9 @@ def sample_and_evaluate(eq, vars_in_eq, num_samples=1000, real_numbers_realizati
     return pd.DataFrame(data)
 
 if __name__ == "__main__":
-    equation, variables_in_equation = sample_random_polynomial_equation(max_powers=3, max_vars=4, max_terms=3, real_numbers_variables=False)
+    equation, variables_in_equation, latex_equation = sample_random_polynomial_equation(max_powers=3, max_vars=4, max_terms=3, real_numbers_variables=False)
     print("Generated polynomial equation:", equation)
+    print("latex equation:", latex_equation)
 
     # Sample realizations and evaluate the equation
     result_table = sample_and_evaluate(equation, variables_in_equation, num_samples=1000, real_numbers_realizations=True)
