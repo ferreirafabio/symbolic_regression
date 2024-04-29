@@ -2,27 +2,31 @@ import sympy as sp
 import random
 import pandas as pd
 import math
+import numpy as np
 
 
-def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numbers_variables=False):
-    # Define the independent variables
+def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numbers_variables=False, rng=None):
+    # If rng is not provided, create a default random generator using numpy
+    rng = rng or np.random.default_rng()
+    
     variables = [sp.symbols(f'x{i}') for i in range(1, max_vars + 1)]
     polynomial = 0
-    num_terms = random.randint(1, max_terms)
+    num_terms = rng.integers(1, max_terms + 1)
 
     # Keep generating terms until a non-zero polynomial is obtained
     while polynomial == 0:
         polynomial = 0
         for _ in range(num_terms):
-            # Number of variables to include in this term
-            num_vars_in_term = random.randint(1, len(variables))
-            
-            # Select variables sequentially starting from x1
+            num_vars_in_term = rng.integers(1, len(variables) + 1)  # exclusive upper bound
             term_variables = variables[:num_vars_in_term]
 
-            term = random.uniform(-10, 10) if real_numbers_variables else random.randint(-10, 10)
+            if real_numbers_variables:
+                term = rng.uniform(-10, 10)
+            else:
+                term = rng.integers(-10, 10)
+
             for var in term_variables:
-                exponent = random.randint(1, max_powers)
+                exponent = rng.integers(1, max_powers + 1)
                 term *= var ** exponent
             polynomial += term
 
