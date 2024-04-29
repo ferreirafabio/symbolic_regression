@@ -121,7 +121,12 @@ class AttentionLayer(nn.Module):
         query = query.view(query.size(0), query.size(1), -1)
         key = key.view(key.size(0), key.size(1), -1)
 
-        attn_out = torch.nn.functional.scaled_dot_product_attention(query, key, value, dropout_p=self.dropout,
+        if self.training:
+            dropout_p = self.dropout
+        else:
+            dropout_p = 0
+
+        attn_out = torch.nn.functional.scaled_dot_product_attention(query, key, value, dropout_p=dropout_p,
                                                                     is_causal=self.is_causal, scale=self.scale)
 
         return self.out_proj(attn_out)

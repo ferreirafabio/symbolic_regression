@@ -62,7 +62,12 @@ class AxialAttention(nn.Module):
 
         value = value.contiguous().view(extended_batch_size, seqlenY, -1)
 
-        attn_out = torch.nn.functional.scaled_dot_product_attention(query, key, value, attn_mask=tbl_mask, dropout_p=self.dropout,
+        if self.training:
+            dropout_p = self.dropout
+        else:
+            dropout_p = 0
+
+        attn_out = torch.nn.functional.scaled_dot_product_attention(query, key, value, attn_mask=tbl_mask, dropout_p=dropout_p,
                                                                     is_causal=False, scale=self.scale)
 
         attn_out = attn_out.view(batch_size, seqlenX, seqlenY, self.num_head * self.head_dim)
