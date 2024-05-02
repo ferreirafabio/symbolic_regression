@@ -7,7 +7,8 @@ import numpy as np
 
 def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numbers_variables=False, rng=None):
     # If rng is not provided, create a default random generator using numpy
-    rng = rng or np.random.default_rng()
+    rng = rng if rng is not None else np.random.default_rng()
+    # rng = rng or np.random.default_rng()
     
     variables = [sp.symbols(f'x{i}') for i in range(1, max_vars + 1)]
     polynomial = 0

@@ -7,6 +7,7 @@ import sympy as sp
 import re
 import pandas as pd
 from numpy.random import default_rng
+import numpy as np
 
 import string
 
@@ -35,6 +36,7 @@ class PolynomialDataset(Dataset):
             eq, vars_in_eq, latex_eq = self.data_source[idx % len(self.data_source)]
 
         data = sample_and_evaluate(eq, vars_in_eq, num_samples=self.num_realizations, real_numbers_realizations=True)
+        print(eq)
         
         latex_token_indices = tokenize_latex_to_char(latex_eq)
         token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
@@ -52,7 +54,7 @@ class PolynomialDataset(Dataset):
                 exponent_data[:, exponent_idx] = torch.tensor(values, dtype=torch.float32)
                 exponent_idx += 1
 
-        return (mantissa_data, exponent_data, token_tensor)
+        return (mantissa_data, exponent_data, token_tensor, eq, data)
 
     def __len__(self):
         if callable(self.data_source):
@@ -63,22 +65,26 @@ class PolynomialDataset(Dataset):
 
 
 class SymPySimpleDataModule(AbstractDataModule):
-    def __init__(self, num_variables, num_realisations, val_samples, batch_size=16):
+    def __init__(self, num_variables, max_powers=3, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32):
         self.rng = default_rng(seed=42)
         self.batch_size = batch_size
         self.val_samples = val_samples
         self.num_variables = num_variables
         self.num_realisations = num_realisations
+        self.max_terms = max_terms
+        self.max_powers = max_powers
         self.validation_set = self.create_validation_set()
         super().__init__(num_variables, {}, {}, num_realisations, val_samples)
 
     def create_sample(self, rng=None):
-        return sample_random_polynomial_equation(max_powers=3, max_vars=self.num_variables, max_terms=3, real_numbers_variables=True, rng=rng)
+        if rng is None:
+            rng = np.random.default_rng(np.random.randint(0, 1000000))
+        return sample_random_polynomial_equation(max_powers=3, max_vars=self.num_variables, max_terms=4, real_numbers_variables=True, rng=rng)
 
     def create_validation_set(self):
         validation_data = [self.create_sample(rng=self.rng) for _ in range(self.val_samples)]
         validation_dataset = PolynomialDataset(
-            data_source=validation_data,  # Pass the list of pre-generated samples
+            data_source=validation_data,
             num_variables=self.num_variables,
             num_realizations=1
         )
@@ -89,7 +95,7 @@ class SymPySimpleDataModule(AbstractDataModule):
         mantissa_stack = torch.stack([item[0] for item in batch])
         exponent_stack = torch.stack([item[1] for item in batch])
         latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=0)
-        return (mantissa_stack, exponent_stack, latex_token_stack)
+        return (mantissa_stack, exponent_stack, latex_token_stack, [item[3] for item in batch], [item[4] for item in batch])
 
     def get_train_loader(self, num_workers=8):
         train_dataset = PolynomialDataset(
@@ -106,12 +112,19 @@ class SymPySimpleDataModule(AbstractDataModule):
         return self.validation_set
 
 if __name__ == "__main__":
-    sympy_data = SymPySimpleDataModule(num_variables=3, num_realisations=10, val_samples=500, batch_size=32)
-    train_loader = sympy_data.get_train_loader(num_workers=8)
+    sympy_data = SymPySimpleDataModule(num_variables=4, num_realisations=10, val_samples=500, batch_size=32)
+    train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
-    for batch in valid_loader:
+    for batch in train_loader:
         # (batch_size, num_realizations, num_variables + 1)
         print(f"mantissa batch shape: {batch[0].shape}")
         print(f"exponent batch shape: {batch[1].shape}")
         print(f"latex token batch shape: {batch[2].shape}")
+        
+        print(f"equation sanity check1: {batch[3][0]}")
+        print(f"equation sanity check2: {batch[3][1]}")
+        
+        print(f"realization sanity check1: {batch[4][0]}")
+        print(f"realization sanity check1: {batch[4][1]}")
+        break
