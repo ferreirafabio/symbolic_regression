@@ -295,7 +295,7 @@ def main(cfg):
 
     accelerator.wait_for_everyone()
     if is_rank_zero:
-        accelerator.save_model(model.model, exp_folder, safe_serialization=False)
+        accelerator.save_model(model, exp_folder, safe_serialization=False)
 
     logger.info(f"Finished saving model weights on rank {rank}")
     logger.info("End training!")

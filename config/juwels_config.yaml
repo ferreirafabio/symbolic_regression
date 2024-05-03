@@ -81,4 +81,5 @@ data_simple:
   val_samples: 100
   batch_size: 8
   real_numbers_variables: False
+  num_workers: 32
   seed: 1

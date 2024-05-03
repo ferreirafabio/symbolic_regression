@@ -66,7 +66,7 @@ class PolynomialDataset(Dataset):
 
 
 class SymPySimpleDataModule(AbstractDataModule):
-    def __init__(self, num_variables, max_powers=2, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32, real_numbers_variables=False, seed=1):
+    def __init__(self, num_variables, max_powers=2, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32, real_numbers_variables=False, seed=1, num_workers=4):
         self.rng = default_rng(seed=seed)
         self.batch_size = batch_size
         self.val_samples = val_samples
@@ -74,6 +74,7 @@ class SymPySimpleDataModule(AbstractDataModule):
         self.num_realisations = num_realisations
         self.max_terms = max_terms
         self.real_numbers_variables = real_numbers_variables
+        self.num_workers = num_workers
         self.max_powers = max_powers
         self.validation_set = self.create_validation_set()
         super().__init__(num_variables, {}, {}, num_realisations, val_samples)
@@ -107,7 +108,7 @@ class SymPySimpleDataModule(AbstractDataModule):
             num_variables=self.num_variables,
             num_realizations=self.num_realisations
         )
-        return DataLoader(validation_dataset, batch_size=self.batch_size, collate_fn=self.collator)
+        return DataLoader(validation_dataset, batch_size=self.batch_size, collate_fn=self.collator, num_workers=self.num_workers)
 
     
     def collator(self, batch):
