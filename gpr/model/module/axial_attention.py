@@ -31,10 +31,10 @@ class AxialAttention(nn.Module):
         self.Wqkv = nn.Linear(embed_dim, 3 * embed_dim, bias=use_bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=use_bias)
 
-        self.rotary_embedding = RotaryEmbedding(
-            dim=embed_dim // num_head,
-            end=max_position_embeddings,
-        )
+        # self.rotary_embedding = RotaryEmbedding(
+        #     dim=embed_dim // num_head,
+        #     end=max_position_embeddings,
+        # )
 
     def forward(self, tbl_act, tbl_mask):
 
@@ -53,10 +53,10 @@ class AxialAttention(nn.Module):
 
         query, key, value = self.Wqkv(tbl_act).chunk(3, dim=-1)
 
-        query = query.contiguous().view(extended_batch_size, seqlenY, self.num_head, self.head_dim)
-        key = key.contiguous().view(extended_batch_size, seqlenY, self.num_head, self.head_dim)
-        query = self.rotary_embedding(query, position_ids=None)
-        key = self.rotary_embedding(key, position_ids=None)
+        # query = query.contiguous().view(extended_batch_size, seqlenY, self.num_head, self.head_dim)
+        # key = key.contiguous().view(extended_batch_size, seqlenY, self.num_head, self.head_dim)
+        # query = self.rotary_embedding(query, position_ids=None)
+        # key = self.rotary_embedding(key, position_ids=None)
         query = query.view(extended_batch_size, seqlenY, -1)
         key = key.view(extended_batch_size, seqlenY, -1)
 

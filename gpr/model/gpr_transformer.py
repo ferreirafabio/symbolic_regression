@@ -13,6 +13,20 @@ class GPRTransformer(nn.Module):
     def __init__(self, config):
         super().__init__()
 
+        max_var_pos = 4 # TODO 4 = mun_var + 1
+        self.var_embed = nn.Linear(config.model_dim, config.model_dim, bias=False) # TODO 4 = mun_var + 1
+
+        pe = torch.zeros(max_var_pos, config.model_dim)
+        position = torch.arange(0, max_var_pos).unsqueeze(1).type(torch.FloatTensor)
+        div_term = torch.exp(
+            torch.arange(0, config.model_dim, 2).type(torch.FloatTensor) * -(math.log(10000.0) / config.model_dim))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        pe = torch.nn.Parameter(pe, requires_grad=False)
+        self.register_buffer('pe', pe)
+
+
         self.trg_embed = PosEmbedding(config.trg_vocab_size, config.model_dim, config.max_len, config.pos_embedding,
                                       config.rel_pos_enc, config.initializer_range)
         self.trg_output = self.trg_embed.embed_seq
@@ -79,6 +93,8 @@ class GPRTransformer(nn.Module):
 
 
         tbl_latent = self.embed_significand(tbl_significand.unsqueeze(-1)) + self.embed_exponent(tbl_exponent.unsqueeze(-1))
+
+        tbl_latent = tbl_latent + self.var_embed(self.pe[:, :tbl_significand.size(2)]).unsqueeze(0)
 
         tbl_mask = None # TODO: Implement mask
 

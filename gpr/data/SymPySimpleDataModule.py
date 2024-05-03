@@ -105,7 +105,7 @@ class SymPySimpleDataModule(AbstractDataModule):
         validation_dataset = PolynomialDataset(
             data_source=validation_data,
             num_variables=self.num_variables,
-            num_realizations=1
+            num_realizations=self.num_realisations
         )
         return DataLoader(validation_dataset, batch_size=self.batch_size, collate_fn=self.collator)
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
-    for batch in train_loader:
+    for batch in valid_loader:
         # (batch_size, num_realizations, num_variables + 1)
         print(f"mantissa batch shape: {batch['mantissa'].shape}")
         print(f"exponent batch shape: {batch['exponent'].shape}")

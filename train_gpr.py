@@ -164,6 +164,7 @@ def main(cfg):
                             mantissa = batch_val['mantissa']
                             exponent = batch_val['exponent']
                             latex_token = batch_val['latex_token']
+
                             shifted_seq = torch.cat([torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1)
                             trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)], dim=-1)
                             logits = model(mantissa, exponent, shifted_seq)
@@ -201,7 +202,9 @@ def main(cfg):
                         accuracy = acc_accuracy / acc_count
 
                         logger.info(
-                            f"Validation at step {step} - Mean Loss: {mean_val_loss.item()}"
+                            f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
+                            f" - Mean PPL: {ppl.item():.4f}"
+                            f" - Mean Acc: {accuracy.item():.4f}"
                         )
                         tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
                         tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
@@ -215,6 +218,7 @@ def main(cfg):
                 mantissa = batch['mantissa']
                 exponent = batch['exponent']
                 latex_token = batch['latex_token']
+
                 shifted_seq = torch.cat(
                     [torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1) # TODO shift with SOS
                 trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)],
