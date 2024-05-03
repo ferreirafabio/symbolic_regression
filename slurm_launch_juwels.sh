@@ -76,7 +76,7 @@ else
     source /p/scratch/laionize/franke5/pt22/bin/activate
 fi
 
-PYTHON_SCRIPT=/p/scratch/laionize/franke5/workspace/GPTworkbench/train_gpt_model.py
+PYTHON_SCRIPT=/p/scratch/laionize/franke5/workspace/ScalingSymbolicRegression/train_gpr.py
 
 srun -lN1 -n1 -r 0 accelerate launch --config_file $ACCELERATE_CONFIG_FILE \
 --rdzv_conf "rdzv_backend=c10d,rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT" --main_process_ip $MASTER_ADDR \
