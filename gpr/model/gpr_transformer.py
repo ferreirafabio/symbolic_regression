@@ -75,10 +75,10 @@ class GPRTransformer(nn.Module):
         return torch.bitwise_not(decoder_mask)
 
 
-    def forward(self, tbl_significand, tbl_exponent, feature_len, sample_len, trg_shifted_equation, trg_len):
+    def forward(self, tbl_significand, tbl_exponent, trg_shifted_equation):
 
 
-        tbl_latent = self.embed_significand(tbl_significand) + self.embed_exponent(tbl_exponent)
+        tbl_latent = self.embed_significand(tbl_significand.unsqueeze(-1)) + self.embed_exponent(tbl_exponent.unsqueeze(-1))
 
         tbl_mask = None # TODO: Implement mask
 

@@ -36,10 +36,11 @@ class PolynomialDataset(Dataset):
             eq, vars_in_eq, latex_eq = self.data_source[idx % len(self.data_source)]
 
         data = sample_and_evaluate(eq, vars_in_eq, num_samples=self.num_realizations, real_numbers_realizations=True)
-        print(eq)
-        
+
         latex_token_indices = tokenize_latex_to_char(latex_eq)
         token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
+
+        # TODO add EOS and SOS tokens (also in training/valid for shifting or shit in data loader)
 
         # Plus 1 for the 'y' variable
         mantissa_data = torch.zeros((self.num_realizations, self.num_variables + 1), dtype=torch.float32)
@@ -65,21 +66,39 @@ class PolynomialDataset(Dataset):
 
 
 class SymPySimpleDataModule(AbstractDataModule):
-    def __init__(self, num_variables, max_powers=3, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32):
-        self.rng = default_rng(seed=42)
+    def __init__(self, num_variables, max_powers=2, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32, real_numbers_variables=False, seed=1):
+        self.rng = default_rng(seed=seed)
         self.batch_size = batch_size
         self.val_samples = val_samples
         self.num_variables = num_variables
         self.num_realisations = num_realisations
         self.max_terms = max_terms
+        self.real_numbers_variables = real_numbers_variables
         self.max_powers = max_powers
         self.validation_set = self.create_validation_set()
         super().__init__(num_variables, {}, {}, num_realisations, val_samples)
 
+        self.ignore_index = -100
+        self.pad_index = 0
+
+    @property
+    def vocab_size(self):
+        return len(characters)
+
+    def batch_to_device(self, batch, device):
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                batch[key] = value.to(device)
+        return batch
+
+
     def create_sample(self, rng=None):
         if rng is None:
             rng = np.random.default_rng(np.random.randint(0, 1000000))
-        return sample_random_polynomial_equation(max_powers=3, max_vars=self.num_variables, max_terms=4, real_numbers_variables=True, rng=rng)
+        return sample_random_polynomial_equation(max_powers=self.max_powers,
+                                                 max_vars=self.num_variables,
+                                                 max_terms=self.max_terms,
+                                                 real_numbers_variables=self.real_numbers_variables, rng=rng)
 
     def create_validation_set(self):
         validation_data = [self.create_sample(rng=self.rng) for _ in range(self.val_samples)]
@@ -94,8 +113,8 @@ class SymPySimpleDataModule(AbstractDataModule):
     def collator(self, batch):
         mantissa_stack = torch.stack([item[0] for item in batch])
         exponent_stack = torch.stack([item[1] for item in batch])
-        latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=0)
-        return (mantissa_stack, exponent_stack, latex_token_stack, [item[3] for item in batch], [item[4] for item in batch])
+        latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=self.pad_index)
+        return {"mantissa": mantissa_stack, "exponent": exponent_stack, "latex_token": latex_token_stack, "equation": [item[3] for item in batch], "realizations": [item[4] for item in batch], 'trg_len': torch.tensor([len(item[2]) for item in batch])}
 
     def get_train_loader(self, num_workers=8):
         train_dataset = PolynomialDataset(
@@ -118,13 +137,13 @@ if __name__ == "__main__":
 
     for batch in train_loader:
         # (batch_size, num_realizations, num_variables + 1)
-        print(f"mantissa batch shape: {batch[0].shape}")
-        print(f"exponent batch shape: {batch[1].shape}")
-        print(f"latex token batch shape: {batch[2].shape}")
+        print(f"mantissa batch shape: {batch['mantissa'].shape}")
+        print(f"exponent batch shape: {batch['exponent'].shape}")
+        print(f"latex token batch shape: {batch['latex_token'].shape}")
         
-        print(f"equation sanity check1: {batch[3][0]}")
-        print(f"equation sanity check2: {batch[3][1]}")
+        print(f"equation sanity check1: {batch['equation'][0]}")
+        print(f"equation sanity check2: {batch['equation'][1]}")
         
-        print(f"realization sanity check1: {batch[4][0]}")
-        print(f"realization sanity check1: {batch[4][1]}")
+        print(f"realization sanity check1: {batch['realizations'][0]}")
+        print(f"realization sanity check1: {batch['realizations'][1]}")
         break

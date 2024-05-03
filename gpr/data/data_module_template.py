@@ -31,7 +31,8 @@ class AbstractDataModule():
         # return the vocabulary of the equation tokens
         #return ["1", "2", ... "sin", "cos", ..., "<EOS>"] # tokens for the late equation
 
-    def get_vocab_size(self):
+    @abc.abstractmethod
+    def vocab_size(self):
         return len(self.get_vocab())
 
     def create_validation_set(self):
