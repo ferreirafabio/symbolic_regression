@@ -4,7 +4,7 @@
 ## SBATCH --exclude=jwb[0067,0069,0637,0829,0832,0907,0921]
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
-#SBATCH --job-name=llmGPw
+#SBATCH --job-name=gpr
 #SBATCH -D .
 #SBATCH --account=cstdl
 #SBATCH --partition=develbooster
