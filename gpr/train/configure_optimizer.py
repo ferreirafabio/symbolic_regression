@@ -1,9 +1,9 @@
 import torch
 
 from torch.optim import AdamW
-from workbench.train.optim.get_lr_schedule import get_learning_rate_schedule
-from workbench.train.optim.adam_cpr import AdamCPR, group_parameters_for_cpr_optimizer
-from workbench.train.optim.group_parameters import group_parameters_for_optimizer
+from gpr.train.optim.get_lr_schedule import get_learning_rate_schedule
+from gpr.train.optim.adam_cpr import AdamCPR, group_parameters_for_cpr_optimizer
+from gpr.train.optim.group_parameters import group_parameters_for_optimizer
 
 
 def configure_optimizer(cfg_optim, model, logger):
