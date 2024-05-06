@@ -3,6 +3,9 @@ import random
 import pandas as pd
 import math
 import numpy as np
+import torch
+from sympy import symbols, lambdify, Eq
+from sympy.parsing.sympy_parser import parse_expr
 
 
 def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numbers_variables=False, rng=None):
@@ -37,41 +40,34 @@ def sample_random_polynomial_equation(max_powers, max_vars, max_terms, real_numb
 
     return equation, variables, latex_equation
 
+def sample_and_evaluate(eq, vars_in_eq, num_samples, real_numbers_realizations=True):
+    used_vars = [var for var in vars_in_eq if var in eq.rhs.free_symbols]
+    if real_numbers_realizations:
+        random_realizations = torch.FloatTensor(num_samples, len(used_vars)).uniform_(-10, 10)
+    else:
+        random_realizations = torch.randint(-10, 10, (num_samples, len(used_vars)), dtype=torch.float32)
 
+    equation_func = lambdify(used_vars, eq.rhs, modules="numpy")
 
-def sample_and_evaluate(eq, vars_in_eq, num_samples=1000, real_numbers_realizations=False):
-    data = []
-    for _ in range(num_samples):
-        values_for_x = {var: 0 for var in vars_in_eq}
-        
-        # Update values for only the variables present in the equation
-        decomposition = {}
-        used_vars = [var for var in vars_in_eq if var in eq.rhs.free_symbols]
-        for var in used_vars:
-            realization = random.uniform(-10, 10) if real_numbers_realizations else random.randint(-10, 10)
+    computed_y_values_np = equation_func(*[random_realizations[:, idx].numpy() for idx in range(len(used_vars))])
+    computed_y_values = torch.tensor(computed_y_values_np, dtype=torch.float32)
 
-            mantissa, exponent = math.frexp(realization)
-            values_for_x[var] = realization
-            decomposition[f"{var}_mantissa"] = mantissa
-            decomposition[f"{var}_exponent"] = exponent
+    var_mantissa, var_exponent = random_realizations.frexp()
+    y_mantissa, y_exponent = computed_y_values.frexp()
 
-        computed_y_value = eq.rhs.subs(values_for_x).evalf()
-        y_mantissa, y_exponent = math.frexp(computed_y_value)
-        data_point = {
-            #**values_for_x, 
-            #'y': float(f"{computed_y_value:.1f}"), 
-            **decomposition,
-            'y_mantissa': y_mantissa, 
-            'y_exponent': y_exponent,
-        }
-        data.append(data_point)
-    return pd.DataFrame(data)
+    mantissa = torch.cat([y_mantissa.unsqueeze(1), var_mantissa], dim=1)
+    exponent = torch.cat([y_exponent.unsqueeze(1), var_exponent], dim=1)
+
+    return mantissa, exponent
+
 
 if __name__ == "__main__":
-    equation, variables_in_equation, latex_equation = sample_random_polynomial_equation(max_powers=3, max_vars=4, max_terms=3, real_numbers_variables=False)
-    print("Generated polynomial equation:", equation)
-    print("latex equation:", latex_equation)
+    # Example usage:
+    vars_in_eq = symbols("x y z")
+    eq_str = "y = x + 2 * z"
+    eq = Eq(*[parse_expr(expr) for expr in eq_str.split("=")])
+    num_samples = 400
+    mantissa_tensor, exponent_tensor = sample_and_evaluate(eq, vars_in_eq, num_samples)
+    print(mantissa_tensor)
+    print(exponent_tensor)
 
-    # Sample realizations and evaluate the equation
-    result_table = sample_and_evaluate(equation, variables_in_equation, num_samples=1000, real_numbers_realizations=True)
-    print(result_table.head())

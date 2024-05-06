@@ -35,27 +35,14 @@ class PolynomialDataset(Dataset):
             # Access pre-generated samples
             eq, vars_in_eq, latex_eq = self.data_source[idx % len(self.data_source)]
 
-        data = sample_and_evaluate(eq, vars_in_eq, num_samples=self.num_realizations, real_numbers_realizations=True)
+        mantissa, exponent = sample_and_evaluate(eq, vars_in_eq, num_samples=self.num_realizations, real_numbers_realizations=True)
 
         latex_token_indices = tokenize_latex_to_char(latex_eq)
         token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
 
         # TODO add EOS and SOS tokens (also in training/valid for shifting or shit in data loader)
 
-        # Plus 1 for the 'y' variable
-        mantissa_data = torch.zeros((self.num_realizations, self.num_variables + 1), dtype=torch.float32)
-        exponent_data = torch.zeros((self.num_realizations, self.num_variables + 1), dtype=torch.float32)
-        
-        mantissa_idx, exponent_idx = 0, 0
-        for key, values in data.to_dict(orient='list').items():
-            if '_mantissa' in key:
-                mantissa_data[:, mantissa_idx] = torch.tensor(values, dtype=torch.float32)
-                mantissa_idx += 1
-            elif '_exponent' in key:
-                exponent_data[:, exponent_idx] = torch.tensor(values, dtype=torch.float32)
-                exponent_idx += 1
-
-        return (mantissa_data, exponent_data, token_tensor, eq, data)
+        return mantissa, exponent, token_tensor, eq
 
     def __len__(self):
         if callable(self.data_source):
@@ -112,10 +99,10 @@ class SymPySimpleDataModule(AbstractDataModule):
 
     
     def collator(self, batch):
-        mantissa_stack = torch.stack([item[0] for item in batch])
-        exponent_stack = torch.stack([item[1] for item in batch])
+        mantissa_stack = pad_sequence([item[0].t() for item in batch], batch_first=True, padding_value=self.pad_index).transpose(2,1)
+        exponent_stack = pad_sequence([item[1].t() for item in batch], batch_first=True, padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
         latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=self.pad_index)
-        return {"mantissa": mantissa_stack, "exponent": exponent_stack, "latex_token": latex_token_stack, "equation": [item[3] for item in batch], "realizations": [item[4] for item in batch], 'trg_len': torch.tensor([len(item[2]) for item in batch])}
+        return {"mantissa": mantissa_stack, "exponent": exponent_stack, "latex_token": latex_token_stack, "equation": [item[3] for item in batch], 'trg_len': torch.tensor([len(item[2]) for item in batch])}
 
     def get_train_loader(self, num_workers=8):
         train_dataset = PolynomialDataset(
@@ -132,19 +119,19 @@ class SymPySimpleDataModule(AbstractDataModule):
         return self.validation_set
 
 if __name__ == "__main__":
-    sympy_data = SymPySimpleDataModule(num_variables=4, num_realisations=10, val_samples=500, batch_size=32)
+    sympy_data = SymPySimpleDataModule(num_variables=4, num_realisations=100, val_samples=500, batch_size=32)
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
-    for batch in valid_loader:
+    for batch in train_loader:
         # (batch_size, num_realizations, num_variables + 1)
         print(f"mantissa batch shape: {batch['mantissa'].shape}")
-        print(f"exponent batch shape: {batch['exponent'].shape}")
-        print(f"latex token batch shape: {batch['latex_token'].shape}")
-        
-        print(f"equation sanity check1: {batch['equation'][0]}")
-        print(f"equation sanity check2: {batch['equation'][1]}")
-        
-        print(f"realization sanity check1: {batch['realizations'][0]}")
-        print(f"realization sanity check1: {batch['realizations'][1]}")
-        break
+        # print(f"exponent batch shape: {batch['exponent'].shape}")
+        # print(f"latex token batch shape: {batch['latex_token'].shape}")
+        #
+        # print(f"equation sanity check1: {batch['equation'][0]}")
+        # print(f"equation sanity check2: {batch['equation'][1]}")
+        #
+        # print(f"realization sanity check1: {batch['realizations'][0]}")
+        # print(f"realization sanity check1: {batch['realizations'][1]}")
+        # break
