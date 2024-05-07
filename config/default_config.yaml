@@ -77,9 +77,9 @@ data_simple:
   num_variables: 2
   max_powers: 1
   max_terms: 3
-  num_realisations: 1
+  num_realisations: 100
   val_samples: 100
-  batch_size: 32
+  batch_size: 4
   real_numbers_variables: False
   num_workers: 8
   seed: 1

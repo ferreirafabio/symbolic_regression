@@ -78,6 +78,23 @@ fi
 
 PYTHON_SCRIPT=/p/scratch/laionize/franke5/workspace/ScalingSymbolicRegression/train_gpr.py
 
-srun -lN1 -n1 -r 0 accelerate launch --config_file $ACCELERATE_CONFIG_FILE \
---rdzv_conf "rdzv_backend=c10d,rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT" --main_process_ip $MASTER_ADDR \
---main_process_port $MASTER_PORT --machine_rank 0 $PYTHON_SCRIPT -c juwels_config.yaml $@
+for (( i=0; i<$NUM_NODES; i++ )); do
+    # Build the command
+    cmd="srun -lN1 -n1 -r $i accelerate launch \
+        --config_file \$ACCELERATE_CONFIG_FILE \
+        --rdzv_conf \"rdzv_backend=c10d,rdzv_endpoint=\$MASTER_ADDR:\$MASTER_PORT\" \
+        --main_process_ip \$MASTER_ADDR \
+        --main_process_port \$MASTER_PORT \
+        --machine_rank $i \
+         \$PYTHON_SCRIPT -c juwels_config.yaml \$@"
+
+    # Execute the command
+    if [[ $i -lt $(($NUM_NODES - 1)) ]]; then
+        # Execute in the background for all but the last task
+        eval $cmd &
+    else
+        # Execute the last task in the foreground
+        eval $cmd
+    fi
+done
+
