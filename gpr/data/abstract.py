@@ -1,5 +1,7 @@
 import numpy as np
+import sympy as sp
 import torch
+import functools
 import inspect
 from abc import ABCMeta, abstractmethod
 
@@ -83,7 +85,7 @@ class AbstractDataModule(PrintMixin, metaclass=AbstractSignatureChecker):
         pass
 
     @abstractmethod
-    def get_train_loader(self, num_workers=8):
+    def get_train_loader(self):
         """return a dataloader over an infinite set of training data."""
         pass
 
@@ -111,10 +113,10 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         self.rng = rng
 
     @abstractmethod
-    def __call__(self, num_nodes: int, num_edges: int, max_terms: int,
-                 num_realizations: int, real_numbers_realizations: bool=True,
+    def __call__(self, num_nodes: int=5, num_edges: int=5, max_terms: int=3,
+                 num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False) -> tuple[torch.Tensor, torch.Tensor]:
+                 keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass
 
@@ -123,13 +125,23 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         """Generates a complex hierarchical random graph."""
         pass
 
+    @staticmethod
+    def _make_equation(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            expression = func(*args, **kwargs)
+            y = sp.symbols('y')
+            equation = sp.Eq(y, expression)
+            return equation
+        return wrapper
+
     @abstractmethod
-    def generate_equation(self, max_terms: int, allowed_operations: list=None) -> None:
+    def generate_equation(self, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         pass
 
     @abstractmethod
-    def generate_data(self, num_points: int, real_numbers_realizations: bool=True) -> None:
+    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True) -> None:
         """Generates a dataset based on the random graph."""
         pass
 
@@ -148,10 +160,9 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
 
 
 class AbstractDataset(torch.utils.data.Dataset, metaclass=AbstractSignatureChecker):
-    def __init__(self, data_source, num_variables, num_realizations):
+    def __init__(self, data_source, generator):
         self.data_source = data_source
-        self.num_variables = num_variables
-        self.num_realizations = num_realizations
+        self.generator = generator
 
     @abstractmethod
     def __getitem__(self, idx):

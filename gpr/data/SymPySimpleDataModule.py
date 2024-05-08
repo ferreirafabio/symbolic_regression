@@ -62,16 +62,18 @@ class SymPySimpleDataModule(AbstractDataModule):
         latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=self.pad_index)
         return {"mantissa": mantissa_stack, "exponent": exponent_stack, "latex_token": latex_token_stack, "equation": [item[3] for item in batch], 'trg_len': torch.tensor([len(item[2]) for item in batch])}
 
-    def get_train_loader(self, num_workers=8):
+    def get_train_loader(self):
         train_dataset = PolynomialDataset(
             data_source=self.create_sample,  # Pass the function to generate samples on-the-fly
             num_variables=self.num_variables,
             num_realizations=self.num_realisations
         )
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, collate_fn=self.collator, num_workers=num_workers)
-        while True:
-            for data in train_loader:
-                yield data
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
+                                  collate_fn=self.collator, num_workers=self.num_workers)
+        #while True:
+            #for data in train_loader:
+                #yield data
+        return train_loader
 
     def get_valid_loader(self):
         return self.validation_set

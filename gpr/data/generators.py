@@ -16,17 +16,17 @@ class SimpleGenerator(AbstractGenerator):
         super().__init__(rng=rng)
         self.rng = rng if rng is not None else np.random.default_rng()
 
-    def __call__(self, num_nodes: int, num_edges: int, max_terms: int,
-                 num_realizations: int, real_numbers_realizations: bool=True,
+    def __call__(self, num_nodes: int=5, num_edges: int=5, max_terms: int=3,
+                 num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False) -> tuple[torch.Tensor, torch.Tensor]:
+                 keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
 
         if (not keep_graph) or (self.graph is None) or (self.x_data is None):
             self.generate_random_graph(num_nodes, num_edges)
-            self.generate_data(num_points=num_realizations)
+            self.generate_data(num_realizations=num_realizations)
         if (not keep_data) or (self.x_data is None):
-            self.generate_data(num_points=num_realizations)
+            self.generate_data(num_realizations=num_realizations)
 
         self.generate_equation(max_terms=max_terms, allowed_operations=allowed_operations)
         x, y = self.evaluate_equation()
@@ -53,7 +53,9 @@ class SimpleGenerator(AbstractGenerator):
 
         self.variables = sorted(self.graph.nodes, key=lambda x: int(x[1:]))
 
-    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int) -> sp.Eq:
+    @AbstractGenerator._make_equation
+    def _generate_random_expression(self, symbols: dict, allowed_operations:
+                                    list, max_terms: int, **kwargs) -> sp.Eq:
         """Generates a random mathematical expression involving the provided symbols."""
         expression = 0
         num_terms = min(max_terms, len(symbols))
@@ -79,20 +81,25 @@ class SimpleGenerator(AbstractGenerator):
                 if operation == "/":
                     expression += symbols[var] / (coeff if coeff != 0 else 1)  # avoid division by zero
                 else:
-                    expr_op = {'+': sp.Add, '-': sp.Mul, '*': sp.Mul, '/': sp.div}[operation]
-                    expression = expr_op(expression, coeff * symbols[var])
+                    expression = sp.sympify(
+                        f"{str(expression)}{operation}{coeff}*{var}",
+                        evaluate=False
+                    )
+                    #expr_op = {'+': sp.Add, '-': sp.Mul, '*': sp.Mul, '/': sp.div}[operation]
+                    #expression = expr_op(expression, coeff * symbols[var])
 
-        y = sp.symbols('y')
-        equation = sp.Eq(y, expression)
-        return equation
+        return expression
 
-    def generate_equation(self, max_terms: int, allowed_operations: list=None) -> None:
+    def generate_equation(self, max_terms: int, allowed_operations: list=None,
+                         **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         if allowed_operations is None:
             allowed_operations = ["+", "-", "*", "/", "sin", "cos", "log", "exp", "**"]
 
         symbols = {var: sp.symbols(var) for var in self.variables}
-        self.expression = self._generate_random_expression(symbols, allowed_operations, max_terms)
+        self.expression = self._generate_random_expression(symbols,
+                                                           allowed_operations,
+                                                           max_terms, **kwargs)
         self.expression_str = str(self.expression.rhs)
         self.expression_latex = sp.latex(self.expression)
 
@@ -104,13 +111,13 @@ class SimpleGenerator(AbstractGenerator):
                                     self.expression.rhs,
                                     modules="numpy")
 
-    def generate_data(self, num_points: int, real_numbers_realizations: bool=True) -> None:
+    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True) -> None:
         """Generates a dataset based on the random graph."""
         if not self.graph:
             raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
         dist = self.rng.uniform if real_numbers_realizations else self.rng.randint
-        x_data = dist(-10, 10, size=(num_points,
+        x_data = dist(-10, 10, size=(num_realizations,
                                      len(self.variables))).astype('float32')
         self.x_data = x_data
 
@@ -160,31 +167,37 @@ class SimpleGenerator(AbstractGenerator):
         plt.savefig('fig.pdf')
 
 
-#class PolynomialGenerator(SimpleGenerator):
-    #def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int) -> sp.Eq:
-        #"""Generates a random polynomial involving the provided symbols."""
-        #expression = 0
-        #num_terms = self.rng.integers(1, max_terms + 1)
-#
-        #for _ in range(num_terms):
-            #num_vars_in_term = rng.integers(1, len(self.variables) + 1)  # exclusive upper bound
-            #term_variables = list(symbols.values())[:num_vars_in_term]
-            #term = rng.uniform(-10, 10)
-#
-            #for var in term_variables:
-                #exponent = self.rng.integers(1, max_powers + 1)
-                #term *= var ** exponent
-            #expression += term
-#
-        #y = sp.symbols('y')
-        #equation = sp.Eq(y, expression)
-        #return equation
+class PolynomialGenerator(SimpleGenerator):
+
+    @AbstractGenerator._make_equation
+    def _generate_random_expression(self, symbols: dict, allowed_operations:
+                                    list, max_terms: int, **kwargs) -> sp.Eq:
+        """Generates a random polynomial involving the provided symbols."""
+        if 'max_powers' in kwargs:
+            max_powers = kwargs['max_powers']
+        else:
+            max_powers = 2
+
+        expression = 0
+        num_terms = self.rng.integers(1, max_terms + 1)
+
+        for _ in range(num_terms):
+            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)  # exclusive upper bound
+            term_variables = list(symbols.values())[:num_vars_in_term]
+            term = self.rng.uniform(-10, 10)
+
+            for var in term_variables:
+                exponent = self.rng.integers(1, max_powers + 1)
+                term *= var ** exponent
+            expression += term
+
+        return expression
 
 
 if __name__ == '__main__':
     generator = SimpleGenerator()
     generator.generate_random_graph(num_nodes=20, num_edges=10)
-    generator.generate_data(num_points=100)
+    generator.generate_data(num_realizations=100)
 
     generator.generate_equation(allowed_operations=["+", "*", "sin", "cos"], max_terms=10)
     x, y = generator.evaluate_equation()
@@ -195,6 +208,9 @@ if __name__ == '__main__':
     x, y = generator.evaluate_equation()
     m, e = generator.get_mantissa_exp(x, y)
 
-    SimpleGenerator.visualize_data(x, y)
+    generator = PolynomialGenerator()
+    m, e = generator(num_nodes=20, num_edges=10, num_realizations=100, max_terms=10,
+                    max_powers=4)
+    #SimpleGenerator.visualize_data(x, y)
 
 

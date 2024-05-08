@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 experiment:
   experiments_base_dir: /home/joerg/workspace/experiments/
   project_name: gpr_project
@@ -83,3 +76,24 @@ data_simple:
   real_numbers_variables: False
   num_workers: 8
   seed: 1
+
+dataloader:
+    generator:
+        num_nodes: 10
+        num_edges: 2
+        max_terms: 3
+        num_realisations: 100
+        allowed_operations: ["+", "*", "sin", "cos"]
+        real_numbers_realizations: False
+        keep_graph: True
+        keep_data: True
+        real_numbers_variables: False
+        num_variables: 2
+        max_powers: 1
+        seed: 1
+    val_samples: 100
+    batch_size: 32
+    num_workers: 8
+
+
+

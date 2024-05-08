@@ -16,6 +16,10 @@ def tokenize_latex_to_char(latex_string):
 
 
 class PolynomialDataset(AbstractDataset):
+    def __init__(self, data_source, num_variables, num_realizations):
+        self.num_variables = num_variables
+        self.num_realizations = num_realizations
+        super().__init__(data_source, generator=None)
 
     def __getitem__(self, idx):
         if callable(self.data_source):
@@ -40,12 +44,12 @@ class SimpleDataset(AbstractDataset):
     def __getitem__(self, idx):
         if callable(self.data_source):
             # Generate samples on-the-fly
-            mantissa, exponent = self.data_source(num_realizations=self.num_realizations)
+            mantissa, exponent = self.data_source()
         else:
             # Access pre-generated samples
             mantissa, exponent = self.data_source[idx % len(self.data_source)]
 
-        latex_token_indices = tokenize_latex_to_char(self.data_source.expression_latex)
+        latex_token_indices = tokenize_latex_to_char(self.generator.expression_latex)
         token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
 
-        return mantissa, exponent, token_tensor, eq
+        return mantissa, exponent, token_tensor, self.generator.expression
