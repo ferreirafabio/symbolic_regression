@@ -1,0 +1,165 @@
+import numpy as np
+import torch
+import inspect
+from abc import ABCMeta, abstractmethod
+
+
+class PrintMixin:
+    def __repr__(self):
+        cls = self.__class__.__name__
+        idhex = hex(id(self))
+        attrs = " ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        attrs = ": " + attrs if attrs else ""
+        return f"<{cls} at {idhex}{attrs}>"
+
+
+class AbstractSignatureChecker(ABCMeta):
+    """
+    Meta class for strictly enforcig signatures of @abstractmethod's in an abstract base class
+    https://stackoverflow.com/a/55315285
+    """
+    def __init__(cls, name, bases, attrs):
+        errors = []
+        for base_cls in bases:
+            for meth_name in getattr(base_cls, "__abstractmethods__", ()):
+                orig_argspec = inspect.getfullargspec(getattr(base_cls, meth_name))
+                target_argspec = inspect.getfullargspec(getattr(cls, meth_name))
+                if orig_argspec != target_argspec:
+                    errors.append(
+                        f"Subclass `{cls.__name__}` of `{base_cls.__name__}` not implemented with correct signature "
+                        f"in abstract method {meth_name!r}.\n"
+                        f"Expected: {orig_argspec}\n"
+                        f"Got: {target_argspec}\n")
+        if errors:
+            raise TypeError("\n".join(errors))
+        super().__init__(name, bases, attrs)
+
+
+class AbstractDataModule(PrintMixin, metaclass=AbstractSignatureChecker):
+    #def __init__(self, num_variables: int, set_binary_op: dict, set_uni_op: dict, num_realisations: int, val_samples: int):
+        #"""
+        #:param num_variables: int, the maximum numer of variables in the equation
+        #:param set_binary_op: dict, a dictionary of binary operations
+        #:param set_uni_op: dict, a dictionary of unary operations
+        #:param num_realisations: int; the number of concrete input values for each equation
+        #:param val_samples: int
+        #"""
+        ## TODO: treat NaNs
+        #pass
+        #self.ignore_index = -100
+        #self.pad_index = 0
+        #self.validation_set = self.create_validation_set()
+
+    @abstractmethod
+    def create_sample(self, rng=None):
+        """Return a tbl of n inference samples of the equation, and the target
+        token sequnce of the latex equation."""
+        pass
+
+    @abstractmethod
+    def get_vocab(self):
+        """Return the vocabulary of the equation tokens."""
+        #return ["1", "2", ... "sin", "cos", ..., "<EOS>"] # tokens for the latex equation
+        pass
+
+    @property
+    def vocab_size(self):
+        return len(self.get_vocab())
+
+    @abstractmethod
+    def create_validation_set(self):
+        pass
+
+    #def latex_equation_to_function(self, latex_equation):
+        #pass
+
+    #def check_if_latex_equation_is_valid(self):
+        #return True
+
+    @abstractmethod
+    def collator(self, batch):
+        """get a set of samples. return a batch for tbl and trg_tex. pad target
+        sequence with ignore index and input table with pad index."""
+        pass
+
+    @abstractmethod
+    def get_train_loader(self, num_workers=8):
+        """return a dataloader over an infinite set of training data."""
+        pass
+
+    @abstractmethod
+    def get_valid_loader(self):
+        """return a dataloader over a finite set of validation data, which was
+        created in the create_validation_set method."""
+        pass
+
+
+class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
+    """
+    Abstract class for the equation generators.
+    """
+    def __init__(self, rng=None):
+        self.graph = None            # Represents the graph structure
+        self.equation = None         # Represents the generated equation
+        self.variables = []          # Represents the variables involved in the equation
+        self.expression_str = ""     # Represents the equation string
+        self.expression_latex = ""   # Represents the latex string
+
+        self.x_data = None           # Input data
+        self.y_data = None           # Output data
+
+        self.rng = rng
+
+    @abstractmethod
+    def __call__(self, num_nodes: int, num_edges: int, max_terms: int,
+                 num_realizations: int, real_numbers_realizations: bool=True,
+                 allowed_operations: list=None, keep_graph: bool=True,
+                 keep_data: bool=False) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calls all method that lead to a realization."""
+        pass
+
+    @abstractmethod
+    def generate_random_graph(self, num_nodes: int, num_edges: int) -> None:
+        """Generates a complex hierarchical random graph."""
+        pass
+
+    @abstractmethod
+    def generate_equation(self, max_terms: int, allowed_operations: list=None) -> None:
+        """Generates an equation that will be applied as a functional mechanism."""
+        pass
+
+    @abstractmethod
+    def generate_data(self, num_points: int, real_numbers_realizations: bool=True) -> None:
+        """Generates a dataset based on the random graph."""
+        pass
+
+    @abstractmethod
+    def evaluate_equation(self) -> tuple[np.ndarray, np.ndarray]:
+        """ This method indexes the currently generated data based on the used
+        variables in the sampled equation. This way we can reuse the same data
+        for multiple generated equations from the same graph, hence increasing
+        efficiency."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
+        pass
+
+
+class AbstractDataset(torch.utils.data.Dataset, metaclass=AbstractSignatureChecker):
+    def __init__(self, data_source, num_variables, num_realizations):
+        self.data_source = data_source
+        self.num_variables = num_variables
+        self.num_realizations = num_realizations
+
+    @abstractmethod
+    def __getitem__(self, idx):
+        pass
+
+    def __len__(self):
+        if callable(self.data_source):
+            return 2**31  # A large number to simulate an infinite dataset
+        else:
+            return len(self.data_source)
+
