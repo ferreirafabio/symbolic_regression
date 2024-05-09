@@ -85,8 +85,6 @@ class SimpleGenerator(AbstractGenerator):
                         f"{str(expression)}{operation}{coeff}*{var}",
                         evaluate=False
                     )
-                    #expr_op = {'+': sp.Add, '-': sp.Mul, '*': sp.Mul, '/': sp.div}[operation]
-                    #expression = expr_op(expression, coeff * symbols[var])
 
         return expression
 
