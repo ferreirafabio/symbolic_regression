@@ -14,7 +14,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import accelerate
 
-from gpr.data.SymPySimpleDataModule import SymPySimpleDataModule
+from gpr.data.generators import PolynomialGenerator
+from gpr.data.loaders import SymPySimpleDataModule
 from gpr.model.gpr_transformer import GPRTransformer
 from gpr.utils.configuration import Config
 from gpr.utils.folder_manager import get_experiment_folder
@@ -26,10 +27,23 @@ def bold(msg):
     return f"\033[1m{msg}\033[0m"
 
 
-def main(cfg):
+def main(config_file):
     """
     Launch pretraining
     """
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
+
+    for arg in unknown_args:
+        if "=" in arg:
+            keys = arg.split("=")[0].split(".")
+            value = convert_string_value(arg.split("=")[1])
+            print(keys, value)
+            setInDict(config_dict, keys, value)
+        else:
+            raise UserWarning(f"argument unknown: {arg}")
+
+    cfg = Config(config_dict=config_dict)
 
     torch.set_float32_matmul_precision("medium")
 
@@ -86,9 +100,9 @@ def main(cfg):
     logger.info(bold(f"############### LOAD DATA on rank {rank}"))
 
 
-
-
-    sympy_data = SymPySimpleDataModule(**config.data_simple)
+    # Instantiate the equation generator
+    sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
+                                       config_path=config_file)
     accelerator.wait_for_everyone()
 
     logger.info(bold(f"############### SETUP DATA on rank {rank}"))
@@ -351,18 +365,5 @@ if __name__ == "__main__":
         config_name += ".yaml"
 
     config_file = os.path.join("config", args.config)
-    with open(config_file, "r") as f:
-        config_dict = yaml.load(f, Loader=yaml.Loader)
 
-    for arg in unknown_args:
-        if "=" in arg:
-            keys = arg.split("=")[0].split(".")
-            value = convert_string_value(arg.split("=")[1])
-            print(keys, value)
-            setInDict(config_dict, keys, value)
-        else:
-            raise UserWarning(f"argument unknown: {arg}")
-
-    config = Config(config_dict=config_dict)
-
-    main(cfg=config)
+    main(config_file)
