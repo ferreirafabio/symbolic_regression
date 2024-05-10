@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 
 from gpr.data.abstract import AbstractGenerator
 
-#TODO: add it to the DataLoader
 #TODO: make trees out of the DiGraph that represent the equations
 
 
-class SimpleGenerator(AbstractGenerator):
+class BaseGenerator(AbstractGenerator):
     def __init__(self, rng=None):
         super().__init__(rng=rng)
         self.rng = rng if rng is not None else np.random.default_rng()
@@ -30,7 +29,7 @@ class SimpleGenerator(AbstractGenerator):
 
         self.generate_equation(max_terms=max_terms, allowed_operations=allowed_operations)
         x, y = self.evaluate_equation()
-        m, e = SimpleGenerator.get_mantissa_exp(x, y)
+        m, e = BaseGenerator.get_mantissa_exp(x, y)
         return m, e
 
     def generate_random_graph(self, num_nodes: int, num_edges: int) -> None:
@@ -56,39 +55,7 @@ class SimpleGenerator(AbstractGenerator):
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations:
                                     list, max_terms: int, **kwargs) -> sp.Eq:
-        """Generates a random mathematical expression involving the provided symbols."""
-        expression = 0
-        num_terms = min(max_terms, len(symbols))
-        selected_vars = random.sample(list(symbols.keys()), num_terms)
-
-        used_operations = []
-
-        for var in selected_vars:
-            operation = self.rng.choice(allowed_operations)
-
-            # Apply constraints on the usage of certain operations
-            if operation == "log" and "log" not in used_operations:
-                expression += sp.log(symbols[var] + 1)  # adjust log for computational stability
-                used_operations.append("log")
-            elif operation == "exp" and used_operations.count("exp") < 2:  # limit the number of exp used
-                expression += sp.exp(symbols[var] % 3)  # Modulus to keep the exponent small
-                used_operations.append("exp")
-            elif operation in ["sin", "cos"] and used_operations.count(operation) < 2:
-                expression += getattr(sp, operation)(symbols[var])
-                used_operations.append(operation)
-            elif operation in ["+", "-", "*", "/"]:
-                coeff = self.rng.uniform(-5, 5)
-                if operation == "/":
-                    expression += symbols[var] / (coeff if coeff != 0 else 1)  # avoid division by zero
-                else:
-                    expression = sp.sympify(
-                        f"{str(expression)}{operation}{coeff}*{var}",
-                        evaluate=False
-                    )
-                    #expr_op = {'+': sp.Add, '-': sp.Mul, '*': sp.Mul, '/': sp.div}[operation]
-                    #expression = expr_op(expression, coeff * symbols[var])
-
-        return expression
+        return NotImplementedError('Need to add an expression generator')
 
     def generate_equation(self, max_terms: int, allowed_operations: list=None,
                          **kwargs) -> None:
@@ -167,7 +134,45 @@ class SimpleGenerator(AbstractGenerator):
         plt.savefig('fig.pdf')
 
 
-class PolynomialGenerator(SimpleGenerator):
+class RandomGenerator(BaseGenerator):
+
+    @AbstractGenerator._make_equation
+    def _generate_random_expression(self, symbols: dict, allowed_operations:
+                                    list, max_terms: int, **kwargs) -> sp.Eq:
+        """Generates a random mathematical expression involving the provided symbols."""
+        expression = 0
+        num_terms = min(max_terms, len(symbols))
+        selected_vars = random.sample(list(symbols.keys()), num_terms)
+
+        used_operations = []
+
+        for var in selected_vars:
+            operation = self.rng.choice(allowed_operations)
+
+            # Apply constraints on the usage of certain operations
+            if operation == "log" and "log" not in used_operations:
+                expression += sp.log(symbols[var] + 1)  # adjust log for computational stability
+                used_operations.append("log")
+            elif operation == "exp" and used_operations.count("exp") < 2:  # limit the number of exp used
+                expression += sp.exp(symbols[var] % 3)  # Modulus to keep the exponent small
+                used_operations.append("exp")
+            elif operation in ["sin", "cos"] and used_operations.count(operation) < 2:
+                expression += getattr(sp, operation)(symbols[var])
+                used_operations.append(operation)
+            elif operation in ["+", "-", "*", "/"]:
+                coeff = self.rng.uniform(-5, 5)
+                if operation == "/":
+                    expression += symbols[var] / (coeff if coeff != 0 else 1)  # avoid division by zero
+                else:
+                    expression = sp.sympify(
+                        f"{str(expression)}{operation}{coeff}*{var}",
+                        evaluate=False
+                    )
+
+        return expression
+
+
+class PolynomialGenerator(BaseGenerator):
 
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations:
@@ -195,7 +200,7 @@ class PolynomialGenerator(SimpleGenerator):
 
 
 if __name__ == '__main__':
-    generator = SimpleGenerator()
+    generator = RandomGenerator()
     generator.generate_random_graph(num_nodes=20, num_edges=10)
     generator.generate_data(num_realizations=100)
 
@@ -211,6 +216,6 @@ if __name__ == '__main__':
     generator = PolynomialGenerator()
     m, e = generator(num_nodes=20, num_edges=10, num_realizations=100, max_terms=10,
                     max_powers=4)
-    #SimpleGenerator.visualize_data(x, y)
+    #BaseGenerator.visualize_data(x, y)
 
 

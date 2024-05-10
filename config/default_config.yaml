@@ -66,23 +66,12 @@ model:
     initializer_range: 0.02
 
 
-data_simple:
-  num_variables: 2
-  max_powers: 1
-  max_terms: 3
-  num_realisations: 100
-  val_samples: 100
-  batch_size: 4
-  real_numbers_variables: False
-  num_workers: 8
-  seed: 1
-
 dataloader:
     generator:
         num_nodes: 10
         num_edges: 2
         max_terms: 3
-        num_realisations: 100
+        num_realizations: 100
         allowed_operations: ["+", "*", "sin", "cos"]
         real_numbers_realizations: False
         keep_graph: True
