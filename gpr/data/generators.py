@@ -21,12 +21,23 @@ class BaseGenerator(AbstractGenerator):
                  keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
 
-        if (not keep_graph) or (self.graph is None) or (self.x_data is None):
+        # Check if keep_graph == False and keep_data == True. If we generate a
+        # new graph we need to generate a new numpy array corresponding to that
+        # graph.
+        assert (not keep_graph) and keep_data, "Cannot reuse the same data if the graph changes."
+
+        # If the keep_graph == False, generate a new graph. Do this when
+        # self.graph is None too.
+        if (not keep_graph) or (self.graph is None):
             self.generate_random_graph(num_nodes, num_edges)
-            self.generate_data(num_realizations=num_realizations)
+        # If the keep_data == False, generate a new numpy array with shape
+        # (num_realizations, len(self.variables)). Here len(self.variables) ==
+        # num_nodes. Do this when self.x_data is None too.
         if (not keep_data) or (self.x_data is None):
             self.generate_data(num_realizations=num_realizations)
 
+        # generate an equation with max_terms < num_nodes and evaluate the
+        # equation on the generated data.
         self.generate_equation(max_terms=max_terms, allowed_operations=allowed_operations)
         x, y = self.evaluate_equation()
         m, e = BaseGenerator.get_mantissa_exp(x, y)
