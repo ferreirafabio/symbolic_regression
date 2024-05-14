@@ -99,7 +99,6 @@ def main(config_file):
 
     logger.info(bold(f"############### LOAD DATA on rank {rank}"))
 
-
     # Instantiate the equation generator
     sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
                                        config_path=config_file)

@@ -51,7 +51,6 @@ class PolynomialDataset(torch.utils.data.Dataset):
         else:
             return len(self.data_source)
 
-
 class SymPySimpleDataModule(AbstractDataModule):
     def __init__(self, num_variables, max_powers=2, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32, real_numbers_variables=False, seed=1, num_workers=4):
         self.rng = default_rng(seed=seed)

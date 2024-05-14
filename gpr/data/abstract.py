@@ -99,5 +99,3 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
     def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         pass
 
-
-
