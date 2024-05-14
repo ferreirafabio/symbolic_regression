@@ -1,15 +1,16 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torch.nn.utils.rnn import pad_sequence
-from gpr.data.sympy_equation_sampler import sample_and_evaluate, sample_random_polynomial_equation
-from gpr.data.data_module_template import AbstractDataModule
 import sympy as sp
-import re
 import pandas as pd
-from numpy.random import default_rng
 import numpy as np
+import torch
 
-import string
+from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
+from numpy.random import default_rng
+
+from gpr.data.sympy_equation_sampler import sample_random_polynomial_equation
+from gpr.data.abstract import AbstractDataModule
+from gpr.data.sympy_equation_sampler import sample_and_evaluate
+
 
 # Include all lowercase and uppercase letters, digits, and some special characters
 characters = string.ascii_lowercase + string.ascii_uppercase + string.digits + '+-=()[]{}^_*\\/,.;:!`\'"<>|&%$#@~?'
@@ -21,11 +22,11 @@ def tokenize_latex_to_char(latex_string):
     return [token_to_index[ch] for ch in latex_string if ch in token_to_index]
 
 
-class PolynomialDataset(Dataset):
+class PolynomialDataset(torch.utils.data.Dataset):
     def __init__(self, data_source, num_variables, num_realizations):
-        self.data_source = data_source
         self.num_variables = num_variables
         self.num_realizations = num_realizations
+        self.data_source = data_source
 
     def __getitem__(self, idx):
         if callable(self.data_source):
@@ -50,8 +51,6 @@ class PolynomialDataset(Dataset):
         else:
             return len(self.data_source)
 
-
-
 class SymPySimpleDataModule(AbstractDataModule):
     def __init__(self, num_variables, max_powers=2, max_terms=4, num_realisations=1000, val_samples=500, batch_size=32, real_numbers_variables=False, seed=1, num_workers=4):
         self.rng = default_rng(seed=seed)
@@ -64,14 +63,13 @@ class SymPySimpleDataModule(AbstractDataModule):
         self.num_workers = num_workers
         self.max_powers = max_powers
         self.validation_set = self.create_validation_set()
-        super().__init__(num_variables, {}, {}, num_realisations, val_samples)
+        #super().__init__(num_variables, {}, {}, num_realisations, val_samples)
 
         self.ignore_index = -100
         self.pad_index = 0
 
-    @property
-    def vocab_size(self):
-        return len(characters)
+    def get_vocab(self):
+        return characters
 
     def batch_to_device(self, batch, device):
         for key, value in batch.items():
@@ -97,23 +95,24 @@ class SymPySimpleDataModule(AbstractDataModule):
         )
         return DataLoader(validation_dataset, batch_size=self.batch_size, collate_fn=self.collator, num_workers=self.num_workers)
 
-    
     def collator(self, batch):
         mantissa_stack = pad_sequence([item[0].t() for item in batch], batch_first=True, padding_value=self.pad_index).transpose(2,1)
         exponent_stack = pad_sequence([item[1].t() for item in batch], batch_first=True, padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
         latex_token_stack = pad_sequence([item[2] for item in batch], batch_first=True, padding_value=self.pad_index)
         return {"mantissa": mantissa_stack, "exponent": exponent_stack, "latex_token": latex_token_stack, "equation": [item[3] for item in batch], 'trg_len': torch.tensor([len(item[2]) for item in batch])}
 
-    def get_train_loader(self, num_workers=8):
+    def get_train_loader(self):
         train_dataset = PolynomialDataset(
             data_source=self.create_sample,  # Pass the function to generate samples on-the-fly
             num_variables=self.num_variables,
             num_realizations=self.num_realisations
         )
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, collate_fn=self.collator, num_workers=num_workers)
-        while True:
-            for data in train_loader:
-                yield data
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
+                                  collate_fn=self.collator, num_workers=self.num_workers)
+        #while True:
+            #for data in train_loader:
+                #yield data
+        return train_loader
 
     def get_valid_loader(self):
         return self.validation_set
