@@ -24,7 +24,7 @@ class BaseGenerator(AbstractGenerator):
         # Check if keep_graph == False and keep_data == True. If we generate a
         # new graph we need to generate a new numpy array corresponding to that
         # graph.
-        assert (not keep_graph) and keep_data, "Cannot reuse the same data if the graph changes."
+        assert keep_graph or (not keep_data), "Cannot reuse the same data if the graph changes."
 
         # If the keep_graph == False, generate a new graph. Do this when
         # self.graph is None too.
