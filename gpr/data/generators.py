@@ -46,7 +46,8 @@ class BaseGenerator(AbstractGenerator):
     def generate_random_graph(self, num_nodes: int, num_edges: int) -> None:
         """Generates a random graph."""
         self.graph = nx.DiGraph()
-
+        if num_edges > (num_nodes * (num_nodes-1) / 2):
+            num_edges = (num_nodes * (num_nodes-1))/2
         # Add nodes representing variables
         for i in range(1, num_nodes + 1):
             self.graph.add_node(f"x{i}")
@@ -76,7 +77,7 @@ class BaseGenerator(AbstractGenerator):
 
         symbols = {var: sp.symbols(var) for var in self.variables}
         self.expression = self._generate_random_expression(symbols,
-                                                           allowed_operations,
+                                                           self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
                                                            max_terms, **kwargs)
         self.expression_str = str(self.expression.rhs)
         self.expression_latex = sp.latex(self.expression)
@@ -146,7 +147,7 @@ class BaseGenerator(AbstractGenerator):
 
 
 class RandomGenerator(BaseGenerator):
-
+    
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations:
                                     list, max_terms: int, **kwargs) -> sp.Eq:
@@ -186,47 +187,66 @@ class RandomGenerator(BaseGenerator):
 class PolynomialGenerator(BaseGenerator):
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, symbols: dict, allowed_operations:
-                                    list, max_terms: int, **kwargs) -> sp.Eq:
+    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, **kwargs) -> sp.Eq:
         """Generates a random polynomial involving the provided symbols."""
-        if 'max_powers' in kwargs:
-            max_powers = kwargs['max_powers']
-        else:
-            max_powers = 2
+        # Ensure allowed_operations only contains "+", "-", "*"
+        if not all(op in {"+", "-", "*"} for op in allowed_operations):
+            raise ValueError("allowed_operations can only contain '+', '-', '*'")
 
-        expression = 0
+        max_powers = kwargs.get('max_powers', 2)
+        real_numbers_variables = kwargs.get('real_numbers_variables', False)
+        allow_negative_coefficients = "-" in allowed_operations
+
         num_terms = self.rng.integers(1, max_terms + 1)
+        terms = []
 
         for _ in range(num_terms):
-            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)  # exclusive upper bound
+            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
             term_variables = list(symbols.values())[:num_vars_in_term]
-            term = self.rng.uniform(-10, 10)
+
+            if real_numbers_variables:
+                term = self.rng.uniform(-10, 10) if allow_negative_coefficients else self.rng.uniform(1, 10)
+            else:
+                term = self.rng.integers(-10, 10) if allow_negative_coefficients else self.rng.integers(1, 10)
 
             for var in term_variables:
                 exponent = self.rng.integers(1, max_powers + 1)
                 term *= var ** exponent
-            expression += term
 
-        return expression
+            terms.append(term)
+
+        polynomial = terms[0]
+
+        for term in terms[1:]:
+            operation = self.rng.choice(allowed_operations)
+            if operation == "+":
+                polynomial += term
+            elif operation == "-":
+                polynomial -= term
+            elif operation == "*":
+                polynomial *= term
+
+        return polynomial
 
 
 if __name__ == '__main__':
-    generator = RandomGenerator()
-    generator.generate_random_graph(num_nodes=20, num_edges=10)
-    generator.generate_data(num_realizations=100)
+    # from gpr.utils.configuration import Config
+    # generator = RandomGenerator()
+    # generator.generate_random_graph(num_nodes=20, num_edges=10)
+    # generator.generate_data(num_realizations=100)
 
-    generator.generate_equation(allowed_operations=["+", "*", "sin", "cos"], max_terms=10)
-    x, y = generator.evaluate_equation()
-    m, e = generator.get_mantissa_exp(x, y)
+    # generator.generate_equation(allowed_operations=["+", "*", "sin", "cos"], max_terms=10)
+    # x, y = generator.evaluate_equation()
+    # m, e = generator.get_mantissa_exp(x, y)
 
-    # use the same generated data for different equations
-    generator.generate_equation(max_terms=10, allowed_operations=["+", "*", "sin", "cos"])
-    x, y = generator.evaluate_equation()
-    m, e = generator.get_mantissa_exp(x, y)
+    # # use the same generated data for different equations
+    # generator.generate_equation(max_terms=10, allowed_operations=["+", "*", "sin", "cos"])
+    # x, y = generator.evaluate_equation()
+    # m, e = generator.get_mantissa_exp(x, y)
 
     generator = PolynomialGenerator()
-    m, e = generator(num_nodes=20, num_edges=10, num_realizations=100, max_terms=10,
-                    max_powers=4)
+    m, e = generator(num_nodes=3, num_edges=3, num_realizations=100, max_terms=10,
+                    max_powers=4, real_numbers_variables=False, allowed_operations=["+"])
     #RandomGenerator.visualize_data(x, y)
 
 
