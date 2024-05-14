@@ -5,6 +5,7 @@ import random
 import torch
 import matplotlib.pyplot as plt
 
+from sympy import Mul, Add
 from gpr.data.abstract import AbstractGenerator
 
 #TODO: make trees out of the DiGraph that represent the equations
@@ -220,11 +221,11 @@ class PolynomialGenerator(BaseGenerator):
         for term in terms[1:]:
             operation = self.rng.choice(allowed_operations)
             if operation == "+":
-                polynomial += term
+                polynomial = Add(polynomial, term, evaluate=True)
             elif operation == "-":
-                polynomial -= term
+                polynomial = Add(polynomial, -term, evaluate=True)
             elif operation == "*":
-                polynomial *= term
+                polynomial = Mul(polynomial, term, evaluate=True)
 
         return polynomial
 
@@ -246,7 +247,7 @@ if __name__ == '__main__':
 
     generator = PolynomialGenerator()
     m, e = generator(num_nodes=3, num_edges=3, num_realizations=100, max_terms=10,
-                    max_powers=4, real_numbers_variables=False, allowed_operations=["+"])
+                    max_powers=4, real_numbers_variables=False, allowed_operations=["+", "-"])
     #RandomGenerator.visualize_data(x, y)
 
 
