@@ -113,13 +113,13 @@ def main(config_file):
     logger.info(bold(f"############### LOAD MODEL on rank {rank}"))
 
 
-    config.model.trg_vocab_size = sympy_data.vocab_size
-    config.model.seq_vocab_size = sympy_data.vocab_size
+    cfg.model.trg_vocab_size = sympy_data.vocab_size
+    cfg.model.seq_vocab_size = sympy_data.vocab_size
 
-    model = GPRTransformer(config.model)
+    model = GPRTransformer(cfg.model)
 
 
-    optimizer, lr_scheduler = configure_optimizer(cfg.optim, model, logger)
+    # optimizer, lr_scheduler = configure_optimizer(cfg.optim, model, logger)
     loss_func = FlashCrossEntropyLoss(ignore_index=0, reduction='mean') # TODO get pad index from data module
 
     model = accelerator.prepare(model)
