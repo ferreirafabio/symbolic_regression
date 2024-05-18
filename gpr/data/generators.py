@@ -145,6 +145,21 @@ class BaseGenerator(AbstractGenerator):
 
         plt.tight_layout()
         plt.savefig('fig.pdf')
+    
+
+    @staticmethod
+    def canonicalize_equation(eq: sp.Eq) -> sp.Eq:
+        """
+        takes a sympy equation and returns its canonical form.
+        The canonical form has terms sorted and combined, ensuring that
+        similar equations always map to the same representation.
+        """
+        # first simplify the equation, then sort the terms and combine them again
+        lhs, rhs = eq.lhs, eq.rhs
+        expanded_exp = sp.expand(lhs - rhs)
+        simplified_exp = sp.simplify(expanded_exp)
+        ordered_terms = simplified_exp.as_ordered_terms()
+        return sum(ordered_terms)
 
 
 class RandomGenerator(BaseGenerator):
@@ -227,7 +242,13 @@ class PolynomialGenerator(BaseGenerator):
             elif operation == "*":
                 polynomial = Mul(polynomial, term, evaluate=True)
 
+        polynomial = self.canonicalize_equation(sp.Eq(polynomial, 0))
+
         return polynomial
+
+
+
+
 
 
 if __name__ == '__main__':
