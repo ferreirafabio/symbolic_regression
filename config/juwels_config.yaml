@@ -75,7 +75,7 @@ dataloader:
         allowed_operations: ["+"]
         real_numbers_realizations: False
         keep_graph: True
-        keep_data: True
+        keep_data: False
         real_numbers_variables: False
         num_variables: 2
         max_powers: 1

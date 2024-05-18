@@ -7,7 +7,7 @@ experiment:
 
 train:
   seed: 1
-  clip_value: 0.1
+  clip_value: 1.0
   val_interval: 500
   log_interval: 100
   log_param_interval: 500
@@ -45,12 +45,12 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    model_dim: 128
-    max_len: 500
+    model_dim: 64
+    max_len: 100
     num_head: 2
-    n_layers: 6
+    n_layers: 4
     ff_factor: 4
-    activation: relu
+    activation: silu
     glu: false
     softmax_scale: True
     pos_embedding: True
@@ -68,14 +68,14 @@ model:
 
 dataloader:
     generator:
-        num_nodes: 10
+        num_nodes: 2
         num_edges: 2
-        max_terms: 3
-        num_realizations: 100
+        max_terms: 4
+        num_realizations: 50
         allowed_operations: ["+"]
         real_numbers_realizations: False
-        keep_graph: True
-        keep_data: True
+        keep_graph: False
+        keep_data: False
         real_numbers_variables: False
         num_variables: 2
         max_powers: 1
