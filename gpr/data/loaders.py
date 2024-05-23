@@ -116,6 +116,7 @@ if __name__ == "__main__":
     counter = 0
     for batch in train_loader:
         print(f"equation batch {batch_valid['equation']}")
+        print(f"equation batch {batch_valid['latex_token']}")
         counter += 1
-        if counter == 3:
+        if counter == 3000:
             break

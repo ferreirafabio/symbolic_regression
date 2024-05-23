@@ -241,6 +241,11 @@ def main(config_file):
 
             train_losses.append(loss.item())
 
+
+            pred_tokens = logits.argmax(dim=-1)
+            print("true tokens", latex_token[0])
+            print("pred tokens", pred_tokens[0])
+
             optimizer.zero_grad()
             accelerator.backward(loss)
             if accelerator.sync_gradients:
