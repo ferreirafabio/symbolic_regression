@@ -104,7 +104,7 @@ if __name__ == "__main__":
     from gpr.data.generators import RandomGenerator, PolynomialGenerator
 
     sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
-                                       config_path='../../config/default_config.yaml')
+                                       config_path='config/default_config.yaml')
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
