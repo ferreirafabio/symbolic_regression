@@ -104,9 +104,18 @@ if __name__ == "__main__":
     from gpr.data.generators import RandomGenerator, PolynomialGenerator
 
     sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
-                                       config_path='config/default_config.yaml')
+                                       config_path='../../config/default_config.yaml')
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
+    print("Validation equations:")
+    for batch_valid in valid_loader:
+        print(f"equation batch {batch_valid['equation']}")
+
+    print("Training equations:")
+    counter = 0
     for batch in train_loader:
-        print(f"mantissa batch shape: {batch['mantissa'].shape}")
+        print(f"equation batch {batch_valid['equation']}")
+        counter += 1
+        if counter == 3:
+            break
