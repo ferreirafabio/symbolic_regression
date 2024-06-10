@@ -17,7 +17,8 @@ class SymPySimpleDataModule(object):
     def __init__(self, generator, config_path):
         global_config = Config(config_file=config_path)
         self.config = global_config.dataloader
-        self.generator = generator(rng=default_rng(self.config.generator.seed))
+        self.seed = self.config.generator.seed
+        self.generator = generator(rng=default_rng(self.seed))
         self.rng = self.generator.rng
 
         self.ignore_index = -100
@@ -45,18 +46,17 @@ class SymPySimpleDataModule(object):
                 batch[key] = value.to(device)
         return batch
 
-    def create_sample(self, rng=None):
+    def create_sample(self, seed=None):
         """Return a tbl of n inference samples of the equation, and the target
         token sequnce of the latex equation."""
-        if rng is not None:
-            self.generator.rng = rng
+        if seed is not None:
+            self.generator.rng = default_rng(seed=seed)
         return self.generator(**self.config.generator)
 
     def create_validation_set(self):
-        validation_data = [self.create_sample(rng=self.rng) for _ in range(self.config.val_samples)]
+        validation_data = [self.create_sample() for _ in range(self.config.val_samples)]
         validation_dataset = EquationDataset(
             data_source=validation_data,
-            generator=self.generator
         )
         return validation_dataset
 
@@ -82,7 +82,6 @@ class SymPySimpleDataModule(object):
         """return a dataloader over an infinite set of training data."""
         train_dataset = EquationDataset(
             data_source=self.create_sample, # Pass the function to generate samples on-the-fly
-            generator=self.generator
         )
         train_loader = DataLoader(train_dataset,
                                   batch_size=self.config.batch_size,
@@ -116,7 +115,7 @@ if __name__ == "__main__":
     counter = 0
     for batch in train_loader:
         print(f"equation batch {batch_valid['equation']}")
-        print(f"equation batch {batch_valid['latex_token']}")
+        #print(f"equation batch {batch_valid['mantissa']}")
         counter += 1
-        if counter == 3000:
+        if counter == 5:
             break
