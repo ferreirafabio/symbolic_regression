@@ -42,7 +42,7 @@ class BaseGenerator(AbstractGenerator):
         self.generate_equation(max_terms=max_terms, allowed_operations=allowed_operations)
         x, y = self.evaluate_equation()
         m, e = BaseGenerator.get_mantissa_exp(x, y)
-        return m, e
+        return m, e, self.expression
 
     def generate_random_graph(self, num_nodes: int, num_edges: int) -> None:
         """Generates a random graph."""
