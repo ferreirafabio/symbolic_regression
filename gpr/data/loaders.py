@@ -29,6 +29,12 @@ class SymPySimpleDataModule(object):
     def get_vocab(self):
         return characters
 
+
+    def indices_to_string(self, indices):
+        if isinstance(indices, torch.Tensor):
+            indices = indices.tolist()
+        return ''.join([characters[i] for i in indices])
+
     @property
     def vocab_size(self):
         return len(self.get_vocab())
@@ -62,6 +68,15 @@ class SymPySimpleDataModule(object):
             rng = default_rng(seed)
             generator = self.generator_class(rng=rng)
         return generator(**self.config.generator)
+
+
+    def create_validation_set(self):
+        validation_data = [self.create_sample(is_=self.rng) for _ in range(self.config.val_samples)]
+        validation_dataset = EquationDataset(
+            data_source=validation_data,
+            generator=self.generator
+        )
+        return validation_dataset
 
     def collator(self, batch):
         """get a set of samples. return a batch for tbl and trg_tex. pad target
@@ -115,7 +130,7 @@ class SymPySimpleDataModule(object):
 
     def get_valid_loader(self):
         valid_dataset = EquationDataset(
-                    data_source=self.create_sample,
+                    data_source=[self.create_sample() for _ in range(self.config.val_samples)],
                 )
         valid_loader = DataLoader(valid_dataset,
                                   batch_size=self.config.batch_size,

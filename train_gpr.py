@@ -157,6 +157,9 @@ def main(config_file):
         logger.info(f"Start epoch {epoch}")
 
         model.train()
+        train_acc = 0
+        train_solved = 0
+        train_samples = 0
 
         for batch in train_dl:
 
@@ -243,8 +246,22 @@ def main(config_file):
 
 
             pred_tokens = logits.argmax(dim=-1)
-            print("true tokens", latex_token[0])
-            print("pred tokens", pred_tokens[0])
+            # batch_acc = 0
+            for i in range(latex_token.shape[0]):
+                acc = (pred_tokens[i, :batch['trg_len'][i]] == latex_token[i, :batch['trg_len'][i]]).sum() / batch['trg_len'][i]
+                train_acc += acc
+                train_solved += acc == 1
+                train_samples += 1
+            #     if acc < 1:
+            #         true_str = sympy_data.indices_to_string(latex_token[i, :batch['trg_len'][i]])
+            #         pred_str = sympy_data.indices_to_string(pred_tokens[i, :batch['trg_len'][i]])
+            #         print("true tokens", sympy_data.indices_to_string(latex_token[i, :batch['trg_len'][i]]))
+            #         print("pred tokens", sympy_data.indices_to_string(pred_tokens[i, :batch['trg_len'][i]]))
+            #     batch_acc += acc
+            # batch_acc /= latex_token.shape[0]
+            # print("batch acc", batch_acc)
+            # print("true tokens", latex_token[0])
+            # print("pred tokens", pred_tokens[0])
 
             optimizer.zero_grad()
             accelerator.backward(loss)
@@ -259,10 +276,13 @@ def main(config_file):
             if step % cfg.train.log_interval == 0 and is_rank_zero:
                 mean_loss = torch.mean(gathered_loss).item()
 
-                logger.info(f"Step {step} - Loss: {mean_loss}")
+                logger.info(f"Step {step} - Loss: {mean_loss:.4f} - Acc: {(train_acc/train_samples).item():.4f} - Solved: {(train_solved/train_samples).item():.4f}")
                 tb_logger.add_scalar("train/loss", mean_loss, step)
+                tb_logger.add_scalar("train/acc", (train_acc/train_samples).item(), step)
+                tb_logger.add_scalar("train/solved", (train_solved/train_samples).item(), step)
                 tb_logger.add_scalar("train/epoch", epoch, step)
                 tb_logger.add_scalar("optim/lr", optimizer.param_groups[0]["lr"], step)
+                train_acc, train_solved, train_samples = 0, 0, 0
 
             if step % cfg.train.log_param_interval == 0 and is_rank_zero:
                 stats = {}
