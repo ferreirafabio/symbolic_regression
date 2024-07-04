@@ -72,7 +72,7 @@ dataloader:
         num_edges: 2
         max_terms: 4
         num_realizations: 100
-        allowed_operations: ["+", "-", "*"]
+        allowed_operations: ["+", "-"]
         real_numbers_realizations: False
         keep_graph: False
         keep_data: False

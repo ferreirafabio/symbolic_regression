@@ -206,45 +206,52 @@ class PolynomialGenerator(BaseGenerator):
     def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, **kwargs) -> sp.Eq:
         """Generates a random polynomial involving the provided symbols."""
         # Ensure allowed_operations only contains "+", "-", "*"
-        if not all(op in {"+", "-", "*"} for op in allowed_operations):
+        if not all(op in {"+", "-", "*", "/"} for op in allowed_operations):
             raise ValueError("allowed_operations can only contain '+', '-', '*'")
 
         max_powers = kwargs.get('max_powers', 2)
         real_numbers_variables = kwargs.get('real_numbers_variables', False)
         allow_negative_coefficients = "-" in allowed_operations
 
-        num_terms = self.rng.integers(1, max_terms + 1)
-        terms = []
+        polynomial = sp.Integer(0)  # Initialize as zero to enter the loop
 
-        for _ in range(num_terms):
-            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
-            term_variables = list(symbols.values())[:num_vars_in_term]
+        while polynomial == 0:
+            num_terms = self.rng.integers(1, max_terms + 1)
+            terms = []
 
-            if real_numbers_variables:
-                term = self.rng.uniform(-10, 10) if allow_negative_coefficients else self.rng.uniform(1, 10)
-            else:
-                term = self.rng.integers(-10, 10) if allow_negative_coefficients else self.rng.integers(1, 10)
+            for _ in range(num_terms):
+                num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
+                term_variables = list(symbols.values())[:num_vars_in_term]
 
-            for var in term_variables:
-                exponent = self.rng.integers(1, max_powers + 1)
-                term *= var ** exponent
+                if real_numbers_variables:
+                    term = self.rng.uniform(-10, 10) if allow_negative_coefficients else self.rng.uniform(1, 10)
+                else:
+                    term = self.rng.integers(-10, 10) if allow_negative_coefficients else self.rng.integers(1, 10)
 
-            terms.append(term)
+                for var in term_variables:
+                    exponent = self.rng.integers(1, max_powers + 1)
+                    term *= var ** exponent
 
-        polynomial = terms[0]
+                terms.append(term)
 
-        for term in terms[1:]:
-            operation = self.rng.choice(allowed_operations)
-            if operation == "+":
-                polynomial = Add(polynomial, term, evaluate=True)
-            elif operation == "-":
-                polynomial = Add(polynomial, -term, evaluate=True)
-            elif operation == "*":
-                polynomial = Mul(polynomial, term, evaluate=True)
+            polynomial = terms[0]
+
+            for term in terms[1:]:
+                operation = self.rng.choice(allowed_operations)
+                if operation == "+":
+                    polynomial = Add(polynomial, term, evaluate=True)
+                elif operation == "-":
+                    polynomial = Add(polynomial, -term, evaluate=True)
+                elif operation == "*":
+                    polynomial = Mul(polynomial, term, evaluate=True)
+                elif operation == "/":
+                    polynomial = Mul(polynomial, 1/term, evaluate=True)
+
+            polynomial = sp.simplify(polynomial)  # Simplify to combine like terms
 
         polynomial = self.canonicalize_equation(sp.Eq(polynomial, 0))
-
         return polynomial
+
 
 
 
@@ -267,8 +274,10 @@ if __name__ == '__main__':
     # m, e = generator.get_mantissa_exp(x, y)
 
     generator = PolynomialGenerator()
-    m, e = generator(num_nodes=3, num_edges=3, num_realizations=100, max_terms=10,
-                    max_powers=4, real_numbers_variables=False, allowed_operations=["+", "-"])
-    #RandomGenerator.visualize_data(x, y)
+    mantissa, exponent, expression = generator(num_nodes=3, num_edges=3, num_realizations=100, max_terms=10,
+                    max_powers=4, real_numbers_variables=False, allowed_operations=["+", "-", "*", "/"])
+    # print(mantissa)
+    # print(exponent)
+    print(expression)
 
 
