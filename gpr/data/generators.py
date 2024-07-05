@@ -122,7 +122,7 @@ class BaseGenerator(AbstractGenerator):
     def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         x_mant, x_exp = torch.tensor(x_data, dtype=torch.float32).frexp()
         y_mant, y_exp = torch.tensor(y_data, dtype=torch.float32).frexp()
-
+        
         mantissa = torch.cat([y_mant.unsqueeze(1), x_mant], dim=1)
         exponent = torch.cat([y_exp.unsqueeze(1), x_exp], dim=1)
 
@@ -203,36 +203,58 @@ class RandomGenerator(BaseGenerator):
 class PolynomialGenerator(BaseGenerator):
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, **kwargs) -> sp.Eq:
+    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, use_constants: bool=False, **kwargs) -> sp.Eq:
         """Generates a random polynomial involving the provided symbols."""
-        # Ensure allowed_operations only contains "+", "-", "*"
-        if not all(op in {"+", "-", "*", "/"} for op in allowed_operations):
-            raise ValueError("allowed_operations can only contain '+', '-', '*'")
-
+        valid_operations = {"+", "-", "*", "/", "log", "exp", "sin", "cos"}
+        if not all(op in valid_operations for op in allowed_operations):
+            raise ValueError(f"allowed_operations can only contain {valid_operations}")
+        
         max_powers = kwargs.get('max_powers', 2)
         real_numbers_variables = kwargs.get('real_numbers_variables', False)
         allow_negative_coefficients = "-" in allowed_operations
 
+        constants = [sp.pi, sp.E] if use_constants else []
+
         polynomial = sp.Integer(0)  # Initialize as zero to enter the loop
 
-        while polynomial == 0:
+        while True:
             num_terms = self.rng.integers(1, max_terms + 1)
             terms = []
+            has_x_term = False  # Flag to check if any term includes a variable
 
             for _ in range(num_terms):
-                num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
-                term_variables = list(symbols.values())[:num_vars_in_term]
-
-                if real_numbers_variables:
-                    term = self.rng.uniform(-10, 10) if allow_negative_coefficients else self.rng.uniform(1, 10)
+                # Randomly decide whether to use a variable or a constant if constants are allowed
+                use_constant = self.rng.choice([True, False]) if constants else False
+                if use_constant and not has_x_term:
+                    term = self.rng.choice(constants)
                 else:
-                    term = self.rng.integers(-10, 10) if allow_negative_coefficients else self.rng.integers(1, 10)
+                    num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
+                    term_variables = list(symbols.values())[:num_vars_in_term]
 
-                for var in term_variables:
-                    exponent = self.rng.integers(1, max_powers + 1)
-                    term *= var ** exponent
+                    if real_numbers_variables:
+                        term = self.rng.uniform(-10, 10) if allow_negative_coefficients else self.rng.uniform(1, 10)
+                    else:
+                        term = self.rng.integers(-10, 10) if allow_negative_coefficients else self.rng.integers(1, 10)
+
+                    for var in term_variables:
+                        exponent = self.rng.integers(1, max_powers + 1)
+                        term *= var ** exponent
+
+                    has_x_term = True  # Set the flag to True as we have added a variable term
+
+                operation = self.rng.choice(allowed_operations)
+                if operation == "log":
+                    term = sp.log(sp.Abs(term) + 1e-9) # ensure log argument is positive
+                elif operation == "exp":
+                    term = sp.exp(term % 3) # prevent exp from overflowing
+                elif operation in ["sin", "cos"]:
+                    term = getattr(sp, operation)(term)
 
                 terms.append(term)
+
+            # Ensure at least one term includes a variable
+            if not has_x_term:
+                continue
 
             polynomial = terms[0]
 
@@ -249,12 +271,25 @@ class PolynomialGenerator(BaseGenerator):
 
             polynomial = sp.simplify(polynomial)  # Simplify to combine like terms
 
-        polynomial = self.canonicalize_equation(sp.Eq(polynomial, 0))
+            # Ensure the polynomial includes at least one variable term
+            if not polynomial.has(*symbols.values()):
+                continue
+
+            # Check for invalid objects in the polynomial
+            if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
+                continue
+            
+            # TODO: check why some polynomials get transformed into a BooleanFalse instead of sp.Equality when cast into sp.Eq
+            eq = sp.Eq(polynomial, 0)
+            if isinstance(polynomial, sp.Equality):
+                polynomial = self.canonicalize_equation(eq)
+            else:
+                print(f"weird polynomial: {polynomial}")
+
+            if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
+                break
+
         return polynomial
-
-
-
-
 
 
 
@@ -275,7 +310,7 @@ if __name__ == '__main__':
 
     generator = PolynomialGenerator()
     mantissa, exponent, expression = generator(num_nodes=3, num_edges=3, num_realizations=100, max_terms=10,
-                    max_powers=4, real_numbers_variables=False, allowed_operations=["+", "-", "*", "/"])
+                    max_powers=4, real_numbers_variables=False, allowed_operations=["+", "cos", "sin", "log", "exp"])
     # print(mantissa)
     # print(exponent)
     print(expression)
