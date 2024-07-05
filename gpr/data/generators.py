@@ -283,8 +283,6 @@ class PolynomialGenerator(BaseGenerator):
             eq = sp.Eq(polynomial, 0)
             if isinstance(polynomial, sp.Equality):
                 polynomial = self.canonicalize_equation(eq)
-            else:
-                print(f"weird polynomial: {polynomial}")
 
             if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                 break
