@@ -14,11 +14,13 @@
 CODE_DIR="/home/frankej/workspace/ScalingSymbolicRegression"
 
 
+MASTER_ADDR=`scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1`
+# Allow communication over InfiniBand cells.
 
 export MASTER_PORT=20073
 export NUM_NODES=$SLURM_JOB_NUM_NODES
-export GPUS_PER_NODE=4
-export NUM_GPUS_PER_NODE=4
+export GPUS_PER_NODE=1
+export NUM_GPUS_PER_NODE=1
 export NUM_GPUS=$((NUM_GPUS_PER_NODE*SLURM_NNODES))
 # export NCCL_DEBUG=INFO
 
