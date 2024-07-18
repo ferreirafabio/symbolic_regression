@@ -18,6 +18,12 @@ source venv/bin/activate
 ```
 
 
+### Install GPU env
+```bash
+bash setup_gpu.sh 
+source venv/bin/activate
+```
+
 
 ## Run Training
 

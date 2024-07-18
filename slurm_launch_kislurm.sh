@@ -61,7 +61,7 @@ for (( i=0; i<$NUM_NODES; i++ )); do
         --main_process_ip \$MASTER_ADDR \
         --main_process_port \$MASTER_PORT \
         --machine_rank $i \
-         \$PYTHON_SCRIPT -c juwels_config.yaml \$@"
+         \$PYTHON_SCRIPT -c kislurm_config.yaml \$@"
 
     # Execute the command
     if [[ $i -lt $(($NUM_NODES - 1)) ]]; then
