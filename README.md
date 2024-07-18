@@ -54,3 +54,13 @@ sbatch --nodes=1 --partition=testdlc_gpu-rtx2080 --time=1:00:00 slurm_launch_kis
 ```
 
 or see `RUN_kislurm.sh` for more options
+
+
+## Generating data and visualizing variable dependencies
+```bash
+python generator.py 
+
+```
+
+Plots are saved by default in `plots/`
+

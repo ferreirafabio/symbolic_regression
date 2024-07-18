@@ -1,8 +1,10 @@
+import os
 import networkx as nx
 import numpy as np
 import sympy as sp
 import random
 import torch
+import matplotlib
 import matplotlib.pyplot as plt
 
 from sympy import Mul, Add
@@ -122,14 +124,14 @@ class BaseGenerator(AbstractGenerator):
     def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         x_mant, x_exp = torch.tensor(x_data, dtype=torch.float32).frexp()
         y_mant, y_exp = torch.tensor(y_data, dtype=torch.float32).frexp()
-        
+
         mantissa = torch.cat([y_mant.unsqueeze(1), x_mant], dim=1)
         exponent = torch.cat([y_exp.unsqueeze(1), x_exp], dim=1)
 
         return mantissa, exponent
 
     @staticmethod
-    def visualize_data(x_data: np.ndarray, y_data: np.ndarray) -> None:
+    def plot(x_data: np.ndarray, y_data: np.ndarray) -> matplotlib.figure.Figure:
         """Visualizes the relationships between the input variables and the output."""
         num_vars = x_data.shape[1]
         fig, axs = plt.subplots(1, num_vars, figsize=(5 * num_vars, 5))
@@ -143,9 +145,15 @@ class BaseGenerator(AbstractGenerator):
             ax.set_ylabel("Output y")
             ax.set_title(f"Variable x{i + 1} vs Output y")
 
-        plt.tight_layout()
-        plt.savefig('fig.pdf')
-    
+        return fig
+
+    def visualize_data(self, path: str='plots', plot_name: str='fig.pdf', savefig: bool=True) -> None:
+        fig = BaseGenerator.plot(self.x_data, self.y_data)
+        if savefig:
+            os.makedirs(path, exist_ok=True)
+            fig.savefig(os.path.join(path, plot_name))
+        else:
+            fig.show()
 
     @staticmethod
     def canonicalize_equation(eq: sp.Eq) -> sp.Eq:
@@ -163,7 +171,7 @@ class BaseGenerator(AbstractGenerator):
 
 
 class RandomGenerator(BaseGenerator):
-    
+
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations:
                                     list, max_terms: int, **kwargs) -> sp.Eq:
@@ -312,5 +320,6 @@ if __name__ == '__main__':
     # print(mantissa)
     # print(exponent)
     print(expression)
+    generator.visualize_data()
 
 
