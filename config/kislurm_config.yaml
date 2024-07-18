@@ -39,7 +39,7 @@ optim:
 
 
 accelerate:
-  mixed_precision: bf16
+  mixed_precision: fp16
 
 
 model:
