@@ -130,7 +130,7 @@ class SymPySimpleDataModule(object):
 
     def get_valid_loader(self):
         valid_dataset = EquationDataset(
-                    data_source=self.create_sample,
+                    data_source=[self.create_sample() for _ in range(self.config.val_samples)],
                 )
         valid_loader = DataLoader(valid_dataset,
                                   batch_size=self.config.batch_size,
