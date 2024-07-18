@@ -58,9 +58,7 @@ or see `RUN_kislurm.sh` for more options
 
 ## Generating data and visualizing variable dependencies
 ```bash
-python generator.py 
+python -i generator.py 
 
 ```
-
-Plots are saved by default in `plots/`
-
+Plots are saved by default in `plots/`. You can access the generated expressions using `generator.expression_str` or `generator.expression_latex`. Or if you want constants being in {mantissa, exponent} format use `generator.expression_str_man_exp` or `generator.expression_latex_man_exp`.

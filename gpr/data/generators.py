@@ -1,4 +1,5 @@
 import os
+import re
 import networkx as nx
 import numpy as np
 import sympy as sp
@@ -83,7 +84,11 @@ class BaseGenerator(AbstractGenerator):
                                                            self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
                                                            max_terms, **kwargs)
         self.expression_str = str(self.expression.rhs)
+        self.expression_str_man_exp = \
+                BaseGenerator._constants_to_mantissa_exp(self.expression_str)
         self.expression_latex = sp.latex(self.expression)
+        self.expression_latex_man_exp = \
+                BaseGenerator._constants_to_mantissa_exp(self.expression_latex)
 
         #self.used_symbols = {str(var): var for var in self.expression.rhs.free_symbols}
         self.used_symbols = sorted(
@@ -119,6 +124,20 @@ class BaseGenerator(AbstractGenerator):
         self.y_data = y_data
 
         return self.x_data[:, idxs], y_data
+
+    @staticmethod
+    def _constants_to_mantissa_exp(expression_str: str) -> str:
+        # Replace constants with their mantissa and exponent representation
+        pattern = r'\b((?:(?<!\bx)\d+(?:\.\d+)?(?:e[-+]?\d+)?|\d+(?:\.\d+)?(?:e[-+]?\d+)?)(?!\d*x))\b'
+
+        def replace_constants(match):
+            c = float(match.group())
+            mantissa, exponent = np.frexp(c)
+            return f"{{{mantissa}, {exponent}}}"
+
+        eq_str = re.sub(pattern, replace_constants, expression_str)
+        return eq_str
+
 
     @staticmethod
     def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
