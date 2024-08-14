@@ -19,6 +19,15 @@ from sympy.parsing.latex import parse_latex
 from gpr.data.utils import tokenize_latex_to_char
 
 
+
+# TODO save as pyarrow
+# TODO dedub
+# TODO valid/train sim
+# TODO parallel generation
+# TODO junked dumping
+# TODO save fp32 and int16
+
+
 class CreateDataset(object):
     def __init__(self, generator, config_path, exp_folder):
         global_config = Config(config_file=config_path)
