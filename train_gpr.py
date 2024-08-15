@@ -174,6 +174,8 @@ def main(config_file):
                     acc_accuracy = torch.tensor(0, device=device, dtype=torch.float)
                     acc_log_probs = torch.tensor(0, device=device, dtype=torch.float)
                     acc_count = torch.tensor(0, device=device, dtype=torch.float)
+                    val_pred_true_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
+
                     for batch_val in valid_dl:
                         batch_val = sympy_data.batch_to_device(batch_val, device)
                         with accelerator.autocast():
@@ -188,7 +190,13 @@ def main(config_file):
 
                         count = torch.sum(batch_val['trg_len'], dtype=torch.float)
                         log_probs = val_loss * count
-                        preds = logits.argmax(dim=-1).view(-1)
+                        predicted_tokens = logits.argmax(dim=-1)
+                        # logger.info(f"logits shape: {logits.shape}")
+                        # logger.info(f"predicted_tokens shape: {predicted_tokens.shape}")
+                        # logger.info(f"trq_seq shape: {trg_seq.shape}")
+                        # logger.info(f"predicted_tokens view shape: {predicted_tokens.view(-1).shape}")
+                        # logger.info(f"trq_seq view: {trg_seq.view(-1).shape}")
+                        preds = predicted_tokens.view(-1)
                         target = trg_seq.view(-1)
                         idx = target != sympy_data.ignore_index
                         accuracy = torch.sum(preds[idx] == target[idx])
@@ -199,13 +207,31 @@ def main(config_file):
                         acc_count += count
                         num_batches += 1
 
+                        # compute MSE between predicted and true equation of the current val batch
+                        # pred_str = sympy_data.indices_to_string(predicted_tokens[:, :batch_val['trg_len'][0]])
+                        # true_str = sympy_data.indices_to_string(trg_seq[:, :batch_val['trg_len'][0]])
+                        pred_strs = sympy_data.indices_to_string(predicted_tokens, batch_val['trg_len'])
+                        true_strs = sympy_data.indices_to_string(trg_seq, batch_val['trg_len'])
+
+                        print("Predicted LaTeX Strings:")
+                        for i, pred_str in enumerate(pred_strs):
+                            print(f"Sequence {i+1}: {pred_str}")
+
+                        print("\nTrue LaTeX Strings:")
+                        for i, true_str in enumerate(true_strs):
+                            print(f"Sequence {i+1}: {true_str}")
+
+                        batch_mse, valid_eq_count = sympy_data.compute_mse(pred_strs, true_strs)
+                        val_pred_true_equation_mse += batch_mse
+
+                    gathered_mse = accelerator.gather(val_pred_true_equation_mse)
                     gathered_val_loss = accelerator.gather(acc_loss)
                     gathered_num_batches = accelerator.gather(num_batches)
                     gathered_acc_log_probs = accelerator.gather(acc_log_probs)
                     gathered_acc_accuracy = accelerator.gather(acc_accuracy)
                     gathered_acc_count = accelerator.gather(acc_count)
-                    if step % cfg.train.log_interval == 0 and is_rank_zero:
 
+                    if step % cfg.train.log_interval == 0 and is_rank_zero:
 
                         acc_loss = torch.sum(gathered_val_loss)
                         num_batches = torch.sum(gathered_num_batches)
@@ -217,14 +243,20 @@ def main(config_file):
                         ppl = torch.exp(acc_log_probs / acc_count)
                         accuracy = acc_accuracy / acc_count
 
+                        mean_mse = torch.sum(gathered_mse) / torch.sum(gathered_num_batches) if torch.sum(gathered_num_batches) > 0 else float('inf')
+
                         logger.info(
                             f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
                             f" - Mean PPL: {ppl.item():.4f}"
                             f" - Mean Acc: {accuracy.item():.4f}"
+                            f" - Mean MSE: {mean_mse:.4f}"
+                            f" - Valid Equations: {valid_eq_count} / {len(pred_strs)}"
                         )
                         tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
                         tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
                         tb_logger.add_scalar(f"valid/accuracy", accuracy.item(), step)
+                        tb_logger.add_scalar(f"valid/mse", mean_mse.item(), step)
+                        tb_logger.add_scalar(f"valid/valid_eqs", valid_eq_count, step)
                         tb_logger.flush()
                 model.train()
 

@@ -92,10 +92,29 @@ class SymPySimpleDataModule(object):
         return all_tokens
 
 
-    def indices_to_string(self, indices):
-        if isinstance(indices, torch.Tensor):
-            indices = indices.tolist()
-        return ''.join([all_tokens[i] for i in indices])
+    def indices_to_string(self, indices_batch, lengths):
+        # if isinstance(indices, torch.Tensor):
+        #     indices = indices.tolist()
+        # return ''.join([all_tokens[i] for i in indices])
+        """
+        Convert a batch of sequences of indices into their corresponding LaTeX strings,
+        respecting the actual length of each sequence.
+
+        Args:
+            indices_batch (torch.Tensor): A 2D tensor where each row is a sequence of indices.
+            lengths (torch.Tensor): A tensor containing the lengths of each sequence in the batch.
+
+        Returns:
+            List[str]: A list of LaTeX strings corresponding to the sequences, truncated to their respective lengths.
+        """
+        if isinstance(indices_batch, torch.Tensor):
+            indices_batch = indices_batch.tolist()
+
+        if isinstance(lengths, torch.Tensor):
+            lengths = lengths.tolist()
+
+        # Convert each sequence of indices into a LaTeX string, truncating by the corresponding length
+        return [''.join([all_tokens[i] for i in indices[:length]]) for indices, length in zip(indices_batch, lengths)]
 
     @property
     def vocab_size(self):
@@ -130,49 +149,74 @@ class SymPySimpleDataModule(object):
         except Exception as e:
             raise e
 
-    def compute_mse(self, predicted_seq, true_seq):
-        """Compute the mean squared error between two latex equations."""
-        pred_eq, pred_vars = self.latex_equation_to_function(predicted_seq)
-        true_eq, true_vars = self.latex_equation_to_function(true_seq)
+    def compute_mse(self, predicted_seqs, true_seqs):
+        """
+        Compute the mean squared error (MSE) between batches of predicted and true LaTeX equations,
+        only considering valid equations.
 
-        # check if equations are valid
-        if pred_eq is None or true_eq is None:
-            return float('inf')
+        Args:
+            predicted_seqs (List[str]): A list of predicted LaTeX equation strings.
+            true_seqs (List[str]): A list of true LaTeX equation strings.
 
-        self.logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {predicted_seq})")
-        self.logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
+        Returns:
+            Tuple[float, int]: The average MSE over valid equations in the batch and the count of valid equations.
+        """
+        total_mse = 0.0
+        valid_eq_count = 0
 
-        # Generate a union of all variables
-        all_vars = list(set(pred_vars) | set(true_vars))
+        for pred_seq, true_seq in zip(predicted_seqs, true_seqs):
+            pred_eq, pred_vars = self.latex_equation_to_function(pred_seq)
+            true_eq, true_vars = self.latex_equation_to_function(true_seq)
 
-        # Generate values for variables
-        # var_values = {(var): np.linspace(-10, 10, 50) for var in all_vars}
-        var_values = {var: np.random.uniform(-10, 10, 10) for var in all_vars}
+            # Check if equations are valid
+            if pred_eq is None or true_eq is None:
+                self.logger.info(f"Invalid equations, skipping MSE computation for this pair.")
+                continue
 
-        try:
-            pred_input_values = [var_values[(var)] for var in pred_vars]
-            true_input_values = [var_values[(var)] for var in true_vars]
+            self.logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {pred_seq})")
+            self.logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
 
-            # Log variable values
-            for var in pred_vars:
-                self.logger.info(f"Values for {var} in pred_eq: {var_values[var]}")
-            for var in true_vars:
-                self.logger.info(f"Values for {var} in true_eq: {var_values[var]}")
+            # Generate a union of all variables
+            all_vars = list(set(pred_vars) | set(true_vars))
 
-             # Create lambdified functions and evaluate them
-            pred_func = sp.lambdify([var for var in pred_vars], pred_eq.rhs, modules=['numpy'])
-            true_func = sp.lambdify([var for var in true_vars], true_eq.rhs, modules=['numpy'])
+            # Generate values for variables
+            var_values = {var: np.random.uniform(-10, 10, 10) for var in all_vars}
 
-            pred_values = pred_func(*pred_input_values)
-            true_values = true_func(*true_input_values)
+            try:
+                pred_input_values = [var_values[var] for var in pred_vars]
+                true_input_values = [var_values[var] for var in true_vars]
 
-            mse = np.mean((pred_values - true_values) ** 2)
-            self.logger.info(f"pred_values: {pred_values}, true_values: {true_values}, MSE: {mse}")
-            return mse
-        except Exception as e:
-            self.logger.info(f"Failed to evaluate equations: {predicted_seq} and {true_seq}")
-            self.logger.info(f"Error: {str(e)}")
-            return float('inf')
+                # Log variable values
+                for var in pred_vars:
+                    self.logger.info(f"Values for {var} in pred_eq: {var_values[var]}")
+                for var in true_vars:
+                    self.logger.info(f"Values for {var} in true_eq: {var_values[var]}")
+
+                # Create lambdified functions and evaluate them
+                pred_func = sp.lambdify([var for var in pred_vars], pred_eq.rhs, modules=['numpy'])
+                true_func = sp.lambdify([var for var in true_vars], true_eq.rhs, modules=['numpy'])
+
+                pred_values = pred_func(*pred_input_values)
+                true_values = true_func(*true_input_values)
+
+                mse = np.mean((pred_values - true_values) ** 2)
+                norm_true_values = np.linalg.norm(true_values)
+                normalized_mse = mse / (norm_true_values + 1e-8)
+                self.logger.info(f"pred_values: {pred_values}, true_values: {true_values}, normalized MSE: {normalized_mse}")
+
+                total_mse += normalized_mse
+                valid_eq_count += 1
+
+            except Exception as e:
+                self.logger.info(f"Failed to evaluate equations: {pred_seq} and {true_seq}")
+                self.logger.info(f"Error: {str(e)}")
+                continue
+
+        if valid_eq_count == 0:
+            return 0.0, 0  # No valid equations, return 0 MSE and 0 valid equations
+
+        return total_mse / valid_eq_count, valid_eq_count
+
 
     def batch_to_device(self, batch, device):
         for key, value in batch.items():
@@ -205,7 +249,8 @@ class SymPySimpleDataModule(object):
         return {"mantissa": mantissa_stack,
                 "exponent": exponent_stack,
                 "latex_token": latex_token_stack,
-                "equation": batch['latex_expression']}
+                "equation": batch['latex_expression'],
+                'trg_len': torch.tensor([seq.shape[0] for seq in batch['token_tensor']])}
 
     def get_base_name(self):
         params = [
@@ -296,6 +341,7 @@ if __name__ == "__main__":
         print(f"mantissa: {batch['mantissa'].shape}")
         print(f"exponent: {batch['exponent'].shape}")
         print(f"latex_token: {batch['latex_token'].shape}")
+        print(f"trg_len: {batch['trg_len']}")
         for equation in batch['equation']:
             print(equation)
         counter += 1
