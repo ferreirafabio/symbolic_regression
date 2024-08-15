@@ -1,5 +1,10 @@
+from typing import List, Tuple
+from collections import defaultdict
+from functools import partial
 import os
 import pathlib
+import pyarrow as pa
+import multiprocessing as mp
 
 import sympy as sp
 import pandas as pd
@@ -8,146 +13,262 @@ import torch
 import yaml
 import random
 import logging
+
+from torch.onnx.symbolic_opset11 import chunk
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
 
-from gpr.data.datasets import EquationDataset
-from gpr.data.utils import all_tokens
+from gpr.data.generators import RandomGenerator, PolynomialGenerator
+
 from gpr.utils.configuration import Config
 from sympy.parsing.latex import parse_latex
 from gpr.data.utils import tokenize_latex_to_char
 
+## TODO dedub
 
 
-# TODO save as pyarrow
-# TODO dedub
-# TODO valid/train sim
-# TODO parallel generation
-# TODO junked dumping
-# TODO save fp32 and int16
+def _chunk2pa_batch(chunk, schema):
+    mantissa_batch, exponent_batch, token_tensor_batch, latex_expression_batch = zip(*chunk)
+    batch = pa.RecordBatch.from_arrays([
+        pa.array([[list(row) for row in m] for m in mantissa_batch]),
+        pa.array([[list(row) for row in e] for e in exponent_batch]),
+        pa.array(token_tensor_batch),
+        pa.array(latex_expression_batch)
+    ], schema=schema)
+    return batch
+
+
 
 
 class CreateDataset(object):
-    def __init__(self, generator, config_path, exp_folder):
-        global_config = Config(config_file=config_path)
+    def __init__(self, config_file=None, config_dict=None, force_creation=True):
+
+        self.force_creation = force_creation
+
+        if config_file is None and config_dict is None:
+            raise UserWarning("ConfigHandler: config_file and config_dict is None")
+
+        global_config = Config(config_file=config_file, config_dict=config_dict)
         self.config = global_config.dataloader
-        self.worker_seeds = np.zeros(self.config.num_workers, dtype=int)
+
         self.seed = self.config.generator.seed  # base seed for training set
-        self.val_seed = self.seed + 1000  # base seed for validation set
+        torch.cuda.manual_seed(self.seed)
+        torch.manual_seed(self.seed)
+        np.random.seed(self.seed)
 
-        self.generator_class = generator
-        self.generators = [None] * self.config.num_workers
+        self.logger = logging.getLogger(__name__)
 
-        self.worker_seeds[0] = self.config.generator.seed + 0
-        seed = self.worker_seeds[0]
-        rng = default_rng(seed)
-        self.generators[0] = self.generator_class(rng=rng)
-        torch.cuda.manual_seed(seed)
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        self.rng = default_rng(self.seed)
+
+        if self.config.generator_type == 'RandomGenerator':
+            self.generator = RandomGenerator(rng=self.rng)
+        elif self.config.generator_type == 'PolynomialGenerator':
+            self.generator = PolynomialGenerator(rng=self.rng)
+
+        num_cpus = mp.cpu_count()
+        workers = num_cpus // 4
+
+        chunk_size = 100
+
+        data_dir = pathlib.Path(self.config.data_dir)
+        os.makedirs(data_dir, exist_ok=True)
+
+        base_name = self.get_base_name()
+
+        file_name = f"train_{base_name}"
+        file_dir = (data_dir / file_name).as_posix()
+        self.create_set(file_dir, chunk_size, workers, self.config.train_samples, force_creation)
+
+        file_name = f"valid_{base_name}"
+        file_dir = (data_dir / file_name).as_posix()
+        self.create_set(file_dir, chunk_size, workers, self.config.valid_samples, force_creation)
 
 
-
-        rng = default_rng(self.seed)
-        self.generator = self.generator_class(rng=rng)
-
-        self.equation_logger = logging.getLogger('equation_logger')
-        self.equation_logger.setLevel(logging.INFO)
-        fh = logging.FileHandler(exp_folder / 'equation_log.txt')
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.equation_logger.addHandler(fh)
-
-        # Prevent the equation_logger from propagating to the root logger
-        self.equation_logger.propagate = False
-
-        self.ignore_index = -100
         self.pad_index = 0
 
-    def get_vocab(self):
-        return all_tokens
+    def get_base_name(self):
 
-    def indices_to_string(self, indices):
-        if isinstance(indices, torch.Tensor):
-            indices = indices.tolist()
-        return ''.join([all_tokens[i] for i in indices])
+        params = [
+            f"s{self.config.generator.seed}",
+            f"n{self.config.generator.num_nodes}",
+            f"e{self.config.generator.num_edges}",
+            f"t{self.config.generator.max_terms}",
+            f"r{self.config.generator.num_realizations}",
+            "real" if self.config.generator.real_numbers_realizations else "int"
+        ]
+        # Add allowed operations if present
+        if self.config.generator.allowed_operations:
+            char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
+            # Replace unsafe characters and join operations
+            safe_ops = [char_map.get(op, op) for op in self.config.generator.allowed_operations]
+            ops = "_".join(sorted(safe_ops))
+            params.append(f"ops_{ops}")
 
-    @property
-    def vocab_size(self):
-        return len(self.get_vocab())
+        # Join all parameters
+        base_name = f"{'_'.join(params)}.arrow"
+        return base_name
 
 
-
-
-
-    def create_sample(self):
-        sample = self.generator(**self.config.generator)
-
+    def _create_sample(self):
+        mantissa, exponent, expression = self.generator(**self.config.generator)
+        latex_expression = sp.latex(expression)
+        latex_token_indices = tokenize_latex_to_char(latex_expression)
+        token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
+        sample = [mantissa.numpy(), exponent.numpy(), token_tensor.numpy(), latex_expression]
         return sample
 
 
-    def create_set(self):
-        dataset = []
-        for _ in range(self.config.val_samples):
-            mantissa, exponent, expression = self.create_sample()
-            self.equation_logger.info(f"Validation equation: {expression}")
-            latex_expression = sp.latex(expression)
-            latex_token_indices = tokenize_latex_to_char(latex_expression)
-            token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
-            dataset.append((mantissa, exponent, token_tensor))
-
-        return dataset
-
-
-    def collator(self, batch):
-        """get a set of samples. return a batch for tbl and trg_tex. pad target
-        sequence with ignore index and input table with pad index."""
-        mantissa_stack = pad_sequence([item[0].t() for item in batch],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1)
-        exponent_stack = pad_sequence([item[1].t() for item in batch],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
-        latex_token_stack = pad_sequence([item[2] for item in batch],
-                                         batch_first=True,
-                                         padding_value=self.pad_index)
-        return {"mantissa": mantissa_stack,
-                "exponent": exponent_stack,
-                "latex_token": latex_token_stack,
-                'trg_len': torch.tensor([len(item[2]) for item in batch])}
+    def _samples2queue(self, mp_queue, num_samples):
+        for _ in range(num_samples):
+            sample = self._create_sample()
+            mp_queue.put(sample)
+        mp_queue.put('END')
+        mp_queue.close()
 
 
 
+    @staticmethod
+    def _queue2file_writer(file_dir, schema, mp_queue, workers, chunk_size=500):
+        total_samples = 0
+        with pa.OSFile(file_dir, 'wb') as sink:
+            with pa.ipc.new_file(sink, schema) as writer:
+                try:
+                    chunk = []
+                    end_counter = 0
+                    while True:
+                        sample = mp_queue.get()
+                        if sample == 'END':
+                            end_counter += 1
+                            if end_counter == workers:
+                                break
+                        else:
+                            chunk.append(sample)
+                            total_samples += 1
 
-    def get_valid_loader(self):
-        """return a dataloader over an infinite set of training data."""
-        train_dataset = self.create_set()
+                        if len(chunk) == chunk_size:
+                            batch = _chunk2pa_batch(chunk, schema)
+                            print(f"queue2file_writer wrote chunk {len(chunk)} in {file_dir}")
+                            writer.write_batch(batch)
+                            chunk = []
+                finally:
+                    if len(chunk) > 0:
+                        batch = _chunk2pa_batch(chunk, schema)
+                        writer.write_batch(batch)
+                    mp_queue.close()
+        print(f"queue2file_writer wrote total {total_samples} in {file_dir}")
 
-        train_loader = DataLoader(train_dataset,
-                                  batch_size=self.config.batch_size,
-                                  collate_fn=self.collator,
-                                  )
-        return train_loader
+
+    def create_set(self, file_dir, chunk_size, workers, num_samples, force_creation):
+
+        if not os.path.exists(file_dir) or force_creation:
+            schema = pa.schema([
+                ('mantissa', pa.list_(pa.list_(pa.float32()))),
+                ('exponent', pa.list_(pa.list_(pa.float32()))),
+                ('token_tensor', pa.list_(pa.int32())),
+                ('latex_expression', pa.string())
+            ])
+
+            mp_manager_list = []
+            mp_queue = mp.Queue(maxsize=workers*2)
+
+            self.logger.info(f"start queue2file writer process")
+            mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, chunk_size))
+            mp_manager.daemon = True
+            mp_manager.start()
+            mp_manager_list.append(mp_manager)
+
+            for worker_idx in range(workers):
+                self.logger.info(f"start create_sample process {worker_idx}")
+                mp_manager = mp.Process(target=self._samples2queue, args=(mp_queue, num_samples // workers))
+                mp_manager.daemon = True
+                mp_manager.start()
+                mp_manager_list.append(mp_manager)
+
+            for mp_manager in mp_manager_list:
+                mp_manager.join()
+        return True
+
+
+
 
 
 
 if __name__ == "__main__":
-    from gpr.data.generators import RandomGenerator, PolynomialGenerator
+    """
+    example usage:
+    python gpr/data/data_creator.py.py -c default_config -f
+    """
+    import argparse
+    import socket
+    import yaml
+    import collections
 
-    sympy_data = CreateDataset(generator=PolynomialGenerator,
-                                       config_path='config/data_config.yaml', exp_folder=pathlib.Path('.'))
-    valid_loader = sympy_data.get_valid_loader()
+    from functools import reduce  # forward compatibility for Python 3
+    import operator
 
-    print("Validation equations:")
-    counter = 0
-    for batch in valid_loader:
-        print(f"Batch {counter} equations:")
-        for equation in batch['latex_token']:
-            print(equation)
-        counter += 1
-        if counter == 5:
-            break
+
+    def update(d, u):
+        for k, v in u.items():
+            if isinstance(v, collections.abc.Mapping):
+                d[k] = update(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
+
+
+    def getFromDict(dataDict, mapList):
+        return reduce(operator.getitem, mapList, dataDict)
+
+
+    def setInDict(dataDict, mapList, value):
+        getFromDict(dataDict, mapList[:-1])[mapList[-1]] = value
+
+
+    def convert_string_value(value):
+        if value in ("false", "False"):
+            value = False
+        elif value in ("true", "True"):
+            value = True
+        else:
+            try:
+                value = int(value)
+            except:
+                try:
+                    value = float(value)
+                except:
+                    pass
+        return value
+
+
+    default_config_name = "data_config.yaml"
+
+    parser = argparse.ArgumentParser(description="Generate Dataset")
+    parser.add_argument("-c", "--config", type=str, default=default_config_name, help="config file name")
+    parser.add_argument("-f", "--force_creation", action="store_true", help="force creation of dataset")
+
+    args, unknown_args = parser.parse_known_args()
+
+    config_name = args.config
+    if not config_name.endswith(".yaml"):
+        config_name += ".yaml"
+
+    config_file = os.path.join("config", config_name)
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
+
+    for arg in unknown_args:
+        if "=" in arg:
+            keys = arg.split("=")[0].split(".")
+            value = convert_string_value(arg.split("=")[1])
+            print(keys, value)
+            setInDict(config_dict, keys, value)
+        else:
+            raise UserWarning(f"argument unknown: {arg}")
+
+    config = Config(config_dict=config_dict)
+
+    sympy_data = CreateDataset(config_dict=config_dict, force_creation=args.force_creation)
+
 
 

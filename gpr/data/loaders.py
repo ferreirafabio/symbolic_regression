@@ -1,3 +1,11 @@
+from typing import List, Tuple
+from collections import defaultdict
+from functools import partial
+import os
+import pathlib
+import pyarrow as pa
+import multiprocessing as mp
+
 import sympy as sp
 import pandas as pd
 import numpy as np
@@ -40,26 +48,42 @@ def clean_variable_names(equation):
     return sp.Eq(lhs, new_rhs), var_map
 
 
+
+class IndexDataset(torch.utils.data.Dataset):
+    """
+    Wrapper class to hold arrow file dataset indices
+    """
+
+    def __init__(self, dataset_indices):
+        self.dataset_indices = dataset_indices
+
+    def __getitem__(self, index):
+        return self.dataset_indices[index]
+
+    def __len__(self):
+        return len(self.dataset_indices)
+
+
 class SymPySimpleDataModule(object):
-    def __init__(self, generator, config_path, exp_folder):
+    def __init__(self, config_path, exp_folder):
         global_config = Config(config_file=config_path)
         self.config = global_config.dataloader
         self.worker_seeds = np.zeros(self.config.num_workers, dtype=int)
         self.seed = self.config.generator.seed # base seed for training set
         self.val_seed = self.seed + 1000  # base seed for validation set
-        self.generator_class = generator
-        self.generators = [None] * self.config.num_workers
 
-        self.equation_logger = logging.getLogger('equation_logger')
-        self.equation_logger.setLevel(logging.INFO)
+        self.logger = logging.getLogger('logger')
+        self.logger.setLevel(logging.INFO)
+        exp_folder = pathlib.Path(exp_folder)
+        os.makedirs(exp_folder, exist_ok=True)
         fh = logging.FileHandler(exp_folder / 'equation_log.txt')
         fh.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
-        self.equation_logger.addHandler(fh)
+        self.logger.addHandler(fh)
 
-        # Prevent the equation_logger from propagating to the root logger
-        self.equation_logger.propagate = False
+        # Prevent the logger from propagating to the root logger
+        self.logger.propagate = False
 
         self.ignore_index = -100
         self.pad_index = 0
@@ -89,7 +113,7 @@ class SymPySimpleDataModule(object):
             return cleaned_eq, variables
 
         except Exception as e:
-            self.equation_logger.info(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
+            self.logger.info(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
             return None, None
 
     def parse_latex_equation(self, latex_equation):
@@ -115,8 +139,8 @@ class SymPySimpleDataModule(object):
         if pred_eq is None or true_eq is None:
             return float('inf')
 
-        self.equation_logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {predicted_seq})")
-        self.equation_logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
+        self.logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {predicted_seq})")
+        self.logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
 
         # Generate a union of all variables
         all_vars = list(set(pred_vars) | set(true_vars))
@@ -131,9 +155,9 @@ class SymPySimpleDataModule(object):
 
             # Log variable values
             for var in pred_vars:
-                self.equation_logger.info(f"Values for {var} in pred_eq: {var_values[var]}")
+                self.logger.info(f"Values for {var} in pred_eq: {var_values[var]}")
             for var in true_vars:
-                self.equation_logger.info(f"Values for {var} in true_eq: {var_values[var]}")
+                self.logger.info(f"Values for {var} in true_eq: {var_values[var]}")
 
              # Create lambdified functions and evaluate them
             pred_func = sp.lambdify([var for var in pred_vars], pred_eq.rhs, modules=['numpy'])
@@ -143,11 +167,11 @@ class SymPySimpleDataModule(object):
             true_values = true_func(*true_input_values)
 
             mse = np.mean((pred_values - true_values) ** 2)
-            self.equation_logger.info(f"pred_values: {pred_values}, true_values: {true_values}, MSE: {mse}")
+            self.logger.info(f"pred_values: {pred_values}, true_values: {true_values}, MSE: {mse}")
             return mse
         except Exception as e:
-            self.equation_logger.info(f"Failed to evaluate equations: {predicted_seq} and {true_seq}")
-            self.equation_logger.info(f"Error: {str(e)}")
+            self.logger.info(f"Failed to evaluate equations: {predicted_seq} and {true_seq}")
+            self.logger.info(f"Error: {str(e)}")
             return float('inf')
 
     def batch_to_device(self, batch, device):
@@ -156,99 +180,112 @@ class SymPySimpleDataModule(object):
                 batch[key] = value.to(device)
         return batch
 
-    def create_sample(self, is_validation=False):
-        """Return a tbl of n inference samples of the equation, and the target
-        token sequnce of the latex equation."""
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
-            worker_id = worker_info.id
-            if self.generators[worker_id] is None:
-                raise RuntimeError(f"Generator for worker {worker_id} is not initialized.")
-            generator = self.generators[worker_id]
-        else:
-            # num_workers <= 1 or valid dataloader case
-            seed = self.val_seed if is_validation else self.seed
-            rng = default_rng(seed)
-            generator = self.generator_class(rng=rng)
-        return generator(**self.config.generator)
 
-
-    def create_validation_set(self):
-        validation_data = [self.create_sample(is_=self.rng) for _ in range(self.config.val_samples)]
-        validation_dataset = EquationDataset(
-            data_source=validation_data,
-            generator=self.generator
-        )
-        return validation_dataset
-
-    def collator(self, batch):
+    def index_pa_collator(self, indices, dataset):
         """get a set of samples. return a batch for tbl and trg_tex. pad target
         sequence with ignore index and input table with pad index."""
-        mantissa_stack = pad_sequence([item[0].t() for item in batch],
+
+        batch = defaultdict(list)
+
+        for i in indices:
+            sample = dataset.get_record_batch(i)
+            for key in ['mantissa', 'exponent', 'token_tensor']:
+                batch[key].append(torch.from_numpy(np.array(sample[key].to_pylist()[0])).t())
+            batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
+
+        mantissa_stack = pad_sequence(batch['mantissa'],
                                       batch_first=True,
                                       padding_value=self.pad_index).transpose(2,1)
-        exponent_stack = pad_sequence([item[1].t() for item in batch],
+        exponent_stack = pad_sequence(batch['exponent'],
                                       batch_first=True,
                                       padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
-        latex_token_stack = pad_sequence([item[2] for item in batch],
+        latex_token_stack = pad_sequence(batch['token_tensor'],
                                          batch_first=True,
                                          padding_value=self.pad_index)
         return {"mantissa": mantissa_stack,
                 "exponent": exponent_stack,
                 "latex_token": latex_token_stack,
-                "equation": [item[3] for item in batch],
-                'trg_len': torch.tensor([len(item[2]) for item in batch])}
+                "equation": batch['latex_expression']}
 
-    def worker_init_fn(self, worker_id):
-        self.worker_seeds[worker_id] = self.config.generator.seed + worker_id
-        seed = self.worker_seeds[worker_id]
-        rng = default_rng(seed)
-        self.generators[worker_id] = self.generator_class(rng=rng)
-        torch.cuda.manual_seed(seed)
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        # print(f"worker {worker_id} has seed: {seed}")
+    def get_base_name(self):
+        params = [
+            f"s{self.config.generator.seed}",
+            f"n{self.config.generator.num_nodes}",
+            f"e{self.config.generator.num_edges}",
+            f"t{self.config.generator.max_terms}",
+            f"r{self.config.generator.num_realizations}",
+            "real" if self.config.generator.real_numbers_realizations else "int"
+        ]
+        # Add allowed operations if present
+        if self.config.generator.allowed_operations:
+            char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
+            # Replace unsafe characters and join operations
+            safe_ops = [char_map.get(op, op) for op in self.config.generator.allowed_operations]
+            ops = "_".join(sorted(safe_ops))
+            params.append(f"ops_{ops}")
 
-    def worker_init_fn_validation(self, worker_id):
-        seed = self.val_seed + worker_id
-        rng = default_rng(seed)
-        self.generators[worker_id] = self.generator_class(rng=rng)
-        torch.cuda.manual_seed(seed)
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        # print(f"validation worker {worker_id} has seed: {seed}")
-        
+        # Join all parameters
+        base_name = f"{'_'.join(params)}.arrow"
+        return base_name
+
+    def get_data_loader(self, set_name: str):
+        """return a dataloader over an infinite set of training data."""
+
+        assert set_name in ['train', 'valid']
+
+        base_name = self.get_base_name()
+
+        file_name = f"{set_name}_{base_name}"
+        data_dir = pathlib.Path(self.config.data_dir)
+        file_dir = (data_dir / file_name).as_posix()
+
+        if not os.path.exists(file_dir):
+            raise FileNotFoundError(f"Data file {file_dir} not found. Run data creation script first.")
+
+        mmap = pa.memory_map(file_dir)
+        self.logger.info("MMAP Read ALL")
+        dataset = pa.ipc.open_file(mmap)
+
+        train_set_size = dataset.num_record_batches
+
+        num_cpu_worker = 4
+        batch_size = 4
+
+        indexes = list(range(train_set_size))
+        indexes = np.random.permutation(indexes)
+        index_dataset = IndexDataset(indexes)
+
+        train_pl_collate_fn = partial(self.index_pa_collator, dataset=dataset)
+
+        data_loader = DataLoader(
+            index_dataset,
+            batch_size=batch_size,
+            collate_fn=train_pl_collate_fn,
+            num_workers=num_cpu_worker,
+            pin_memory=True,
+            drop_last=True if set_name == 'train' else False,
+        )
+
+        return data_loader
+
+
+
+
     def get_train_loader(self):
         """return a dataloader over an infinite set of training data."""
-        train_dataset = EquationDataset(
-            data_source=self.create_sample,
-        )
-        train_loader = DataLoader(train_dataset,
-                                  batch_size=self.config.batch_size,
-                                  collate_fn=self.collator,
-                                  num_workers=self.config.num_workers,
-                                  worker_init_fn=self.worker_init_fn,
-                                )
+
+        train_loader = self.get_data_loader(set_name='train')
         return train_loader
 
     def get_valid_loader(self):
-        valid_dataset = EquationDataset(
-                    data_source=[self.create_sample() for _ in range(self.config.val_samples)],
-                )
-        valid_loader = DataLoader(valid_dataset,
-                                  batch_size=self.config.batch_size,
-                                  collate_fn=self.collator,
-                                  num_workers=self.config.num_workers,
-                                  worker_init_fn=self.worker_init_fn_validation,
-                                  )
+
+        valid_loader = self.get_data_loader(set_name='valid')
         return valid_loader
 
 
 if __name__ == "__main__":
-    from gpr.data.generators import RandomGenerator, PolynomialGenerator
 
-    sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
-                                       config_path='config/default_config.yaml')
+    sympy_data = SymPySimpleDataModule(config_path='config/default_config.yaml', exp_folder='exp')
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 
@@ -256,6 +293,9 @@ if __name__ == "__main__":
     counter = 0
     for batch in valid_loader:
         print(f"Batch {counter} equations:")
+        print(f"mantissa: {batch['mantissa'].shape}")
+        print(f"exponent: {batch['exponent'].shape}")
+        print(f"latex_token: {batch['latex_token'].shape}")
         for equation in batch['equation']:
             print(equation)
         counter += 1
