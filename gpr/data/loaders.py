@@ -235,7 +235,15 @@ class SymPySimpleDataModule(object):
         for i in indices:
             sample = dataset.get_record_batch(i)
             for key in ['mantissa', 'exponent', 'token_tensor']:
-                batch[key].append(torch.from_numpy(np.array(sample[key].to_pylist()[0])).t())
+                array_data = np.array(sample[key].to_pylist()[0])
+                tensor_data = torch.from_numpy(array_data)
+                # batch[key].append(torch.from_numpy(np.array(sample[key].to_pylist()[0])).t())
+                # Ensure mantissa and exponent are float32
+                if key in ['mantissa', 'exponent']:
+                    tensor_data = tensor_data.float()
+
+                batch[key].append(tensor_data.t())  # Transpose for PyTorch
+
             batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
 
         mantissa_stack = pad_sequence(batch['mantissa'],
@@ -266,7 +274,13 @@ class SymPySimpleDataModule(object):
         file_dir = (data_dir / file_name).as_posix()
 
         if not os.path.exists(file_dir):
-            raise FileNotFoundError(f"Data file {file_dir} not found. Run data creation script first.")
+            available_files = os.listdir(data_dir)
+            available_files_str = "\n".join(available_files) if available_files else "No files found."
+
+            raise FileNotFoundError(
+                f"Data file '{file_dir}' not found. Run the data creation script first.\n"
+                f"Available files in '{data_dir}':\n{available_files_str}"
+            )
 
         mmap = pa.memory_map(file_dir)
         self.logger.info("MMAP Read ALL")
