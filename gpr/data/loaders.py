@@ -24,6 +24,11 @@ from gpr.data.data_creator import get_base_name
 from sympy.parsing.latex import parse_latex
 
 
+# TODO multi gpu, multi node loading
+# TODO samller realization as in data arraw file
+# TODO speed test
+
+
 def clean_variable_names(equation):
     """Replace subscripted variable names with non-subscripted names."""
     lhs, rhs = equation.lhs, equation.rhs
