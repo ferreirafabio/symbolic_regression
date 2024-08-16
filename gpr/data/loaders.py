@@ -20,7 +20,7 @@ from numpy.random import default_rng
 from gpr.data.datasets import EquationDataset
 from gpr.data.utils import all_tokens
 from gpr.utils.configuration import Config
-from gpt.data.data_creator import get_base_name
+from gpr.data.data_creator import get_base_name
 from sympy.parsing.latex import parse_latex
 
 
@@ -255,7 +255,7 @@ class SymPySimpleDataModule(object):
 
 
     def get_data_loader(self, set_name: str):
-        """return a dataloader over an infinite set of training data."""
+        """return a dataloader over an finite set of training data."""
 
         assert set_name in ['train', 'valid']
 
@@ -277,9 +277,9 @@ class SymPySimpleDataModule(object):
         num_cpu_worker = 4
         batch_size = 4
 
-        indexes = list(range(train_set_size))
-        indexes = np.random.permutation(indexes)
-        index_dataset = IndexDataset(indexes)
+        indices = list(range(train_set_size))
+        indices = np.random.permutation(indices)
+        index_dataset = IndexDataset(indices)
 
         train_pl_collate_fn = partial(self.index_pa_collator, dataset=dataset)
 
@@ -291,6 +291,8 @@ class SymPySimpleDataModule(object):
             pin_memory=True,
             drop_last=True if set_name == 'train' else False,
         )
+        
+        self.logger.info(f"DataLoader for {set_name} successfully loaded from {file_dir}.")
 
         return data_loader
 

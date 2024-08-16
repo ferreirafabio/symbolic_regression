@@ -90,7 +90,7 @@ class CreateDataset(object):
             self.generator = PolynomialGenerator(rng=self.rng)
 
         num_cpus = mp.cpu_count()
-        workers = num_cpus // 4
+        workers = num_cpus // 8
 
         chunk_size = 1000
 
