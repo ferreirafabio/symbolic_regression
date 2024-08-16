@@ -39,6 +39,28 @@ def _chunk2pa_batch(chunk, schema):
     return batch
 
 
+def get_base_name(config, dataset_type):
+
+    params = [
+        f"s{config.generator.seed}",
+        f"n{config.generator.num_nodes}",
+        f"e{config.generator.num_edges}",
+        f"t{config.generator.max_terms}",
+        f"r{config.generator.num_realizations}",
+        f"m{config.train_samples if dataset_type == 'train' else config.valid_samples}",
+        "real" if config.generator.real_numbers_realizations else "int"
+    ]
+    # Add allowed operations if present
+    if self.config.generator.allowed_operations:
+        char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
+        # Replace unsafe characters and join operations
+        safe_ops = [char_map.get(op, op) for op in config.generator.allowed_operations]
+        ops = "_".join(sorted(safe_ops))
+        params.append(f"ops_{ops}")
+
+    # Join all parameters
+    base_name = f"{'_'.join(params)}.arrow"
+    return base_name
 
 
 class CreateDataset(object):
@@ -74,40 +96,19 @@ class CreateDataset(object):
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
 
-        train_base_name = self.get_base_name("train")
+        train_base_name = get_base_name(self.config, "train")
         train_file_name = f"train_{train_base_name}"
         train_file_dir = (data_dir / train_file_name).as_posix()
         self.create_set(train_file_dir, chunk_size, workers, self.config.train_samples, force_creation)
 
-        valid_base_name = self.get_base_name("valid")
+        valid_base_name = get_base_name(self.config, "valid")
         valid_file_name = f"valid_{valid_base_name}"
         valid_file_dir = (data_dir / valid_file_name).as_posix()
         self.create_set(valid_file_dir, chunk_size, workers, self.config.valid_samples, force_creation)
 
         self.pad_index = 0
 
-    def get_base_name(self, dataset_type):
 
-        params = [
-            f"s{self.config.generator.seed}",
-            f"n{self.config.generator.num_nodes}",
-            f"e{self.config.generator.num_edges}",
-            f"t{self.config.generator.max_terms}",
-            f"r{self.config.generator.num_realizations}",
-            f"m{self.config.train_samples if dataset_type == 'train' else self.config.valid_samples}",
-            "real" if self.config.generator.real_numbers_realizations else "int"
-        ]
-        # Add allowed operations if present
-        if self.config.generator.allowed_operations:
-            char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
-            # Replace unsafe characters and join operations
-            safe_ops = [char_map.get(op, op) for op in self.config.generator.allowed_operations]
-            ops = "_".join(sorted(safe_ops))
-            params.append(f"ops_{ops}")
-
-        # Join all parameters
-        base_name = f"{'_'.join(params)}.arrow"
-        return base_name
 
 
     def _create_sample(self):

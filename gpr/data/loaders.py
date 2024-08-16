@@ -20,6 +20,7 @@ from numpy.random import default_rng
 from gpr.data.datasets import EquationDataset
 from gpr.data.utils import all_tokens
 from gpr.utils.configuration import Config
+from gpt.data.data_creator import get_base_name
 from sympy.parsing.latex import parse_latex
 
 
@@ -252,33 +253,13 @@ class SymPySimpleDataModule(object):
                 "equation": batch['latex_expression'],
                 'trg_len': torch.tensor([seq.shape[0] for seq in batch['token_tensor']])}
 
-    def get_base_name(self):
-        params = [
-            f"s{self.config.generator.seed}",
-            f"n{self.config.generator.num_nodes}",
-            f"e{self.config.generator.num_edges}",
-            f"t{self.config.generator.max_terms}",
-            f"r{self.config.generator.num_realizations}",
-            "real" if self.config.generator.real_numbers_realizations else "int"
-        ]
-        # Add allowed operations if present
-        if self.config.generator.allowed_operations:
-            char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
-            # Replace unsafe characters and join operations
-            safe_ops = [char_map.get(op, op) for op in self.config.generator.allowed_operations]
-            ops = "_".join(sorted(safe_ops))
-            params.append(f"ops_{ops}")
-
-        # Join all parameters
-        base_name = f"{'_'.join(params)}.arrow"
-        return base_name
 
     def get_data_loader(self, set_name: str):
         """return a dataloader over an infinite set of training data."""
 
         assert set_name in ['train', 'valid']
 
-        base_name = self.get_base_name()
+        base_name = get_base_name(self.config, set_name)
 
         file_name = f"{set_name}_{base_name}"
         data_dir = pathlib.Path(self.config.data_dir)
