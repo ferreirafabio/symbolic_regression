@@ -4,7 +4,7 @@ dataloader:
         num_nodes: 2
         num_edges: 2
         max_terms: 4
-        num_realizations: 100
+        num_realizations: 200
         allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
         real_numbers_realizations: False
         keep_graph: False
@@ -13,8 +13,8 @@ dataloader:
         num_variables: 2
         max_powers: 1
         seed: 1
-    train_samples: 1000
-    valid_samples: 500
+    train_samples: 100000
+    valid_samples: 5000
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
