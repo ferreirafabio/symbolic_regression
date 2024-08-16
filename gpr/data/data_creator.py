@@ -18,6 +18,7 @@ from torch.onnx.symbolic_opset11 import chunk
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
+from tqdm import tqdm
 
 from gpr.data.generators import RandomGenerator, PolynomialGenerator
 
@@ -47,11 +48,11 @@ def get_base_name(config, dataset_type):
         f"e{config.generator.num_edges}",
         f"t{config.generator.max_terms}",
         f"r{config.generator.num_realizations}",
-        f"m{config.train_samples if dataset_type == 'train' else config.valid_samples}",
+        f"smpls{config.train_samples if dataset_type == 'train' else config.valid_samples}",
         "real" if config.generator.real_numbers_realizations else "int"
     ]
     # Add allowed operations if present
-    if self.config.generator.allowed_operations:
+    if config.generator.allowed_operations:
         char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
         # Replace unsafe characters and join operations
         safe_ops = [char_map.get(op, op) for op in config.generator.allowed_operations]
@@ -91,7 +92,7 @@ class CreateDataset(object):
         num_cpus = mp.cpu_count()
         workers = num_cpus // 4
 
-        chunk_size = 100
+        chunk_size = 1000
 
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
@@ -99,12 +100,12 @@ class CreateDataset(object):
         train_base_name = get_base_name(self.config, "train")
         train_file_name = f"train_{train_base_name}"
         train_file_dir = (data_dir / train_file_name).as_posix()
-        self.create_set(train_file_dir, chunk_size, workers, self.config.train_samples, force_creation)
+        self.create_set(train_file_dir, chunk_size, workers, self.config.train_samples, force_creation, dataset_type="train")
 
         valid_base_name = get_base_name(self.config, "valid")
         valid_file_name = f"valid_{valid_base_name}"
         valid_file_dir = (data_dir / valid_file_name).as_posix()
-        self.create_set(valid_file_dir, chunk_size, workers, self.config.valid_samples, force_creation)
+        self.create_set(valid_file_dir, chunk_size, workers, self.config.valid_samples, force_creation, dataset_type="valid")
 
         self.pad_index = 0
 
@@ -130,13 +131,14 @@ class CreateDataset(object):
 
 
     @staticmethod
-    def _queue2file_writer(file_dir, schema, mp_queue, workers, chunk_size=500):
+    def _queue2file_writer(file_dir, schema, mp_queue, workers, chunk_size=500, total_chunks=None, dataset_type="train"):
         total_samples = 0
         with pa.OSFile(file_dir, 'wb') as sink:
             with pa.ipc.new_file(sink, schema) as writer:
                 try:
                     chunk = []
                     end_counter = 0
+                    pbar = tqdm(total=total_chunks, desc=f"Writing {dataset_type} dataset", unit="chunk")
                     while True:
                         sample = mp_queue.get()
                         if sample == 'END':
@@ -149,9 +151,11 @@ class CreateDataset(object):
 
                         if len(chunk) == chunk_size:
                             batch = _chunk2pa_batch(chunk, schema)
-                            print(f"queue2file_writer wrote chunk {len(chunk)} in {file_dir}")
+                            # print(f"queue2file_writer wrote chunk {len(chunk)} in {file_dir}")
                             writer.write_batch(batch)
                             chunk = []
+                            pbar.update(1)
+                    pbar.close()
                 finally:
                     if len(chunk) > 0:
                         batch = _chunk2pa_batch(chunk, schema)
@@ -160,7 +164,7 @@ class CreateDataset(object):
         print(f"queue2file_writer wrote total {total_samples} in {file_dir}")
 
 
-    def create_set(self, file_dir, chunk_size, workers, num_samples, force_creation):
+    def create_set(self, file_dir, chunk_size, workers, num_samples, force_creation, dataset_type="train"):
 
         if not os.path.exists(file_dir) or force_creation:
             schema = pa.schema([
@@ -173,14 +177,17 @@ class CreateDataset(object):
             mp_manager_list = []
             mp_queue = mp.Queue(maxsize=workers*2)
 
-            self.logger.info(f"start queue2file writer process")
-            mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, chunk_size))
+            total_chunks = num_samples // chunk_size
+
+            self.logger.info(f"Starting to write the {dataset_type} dataset to {file_dir}")
+            print(f"Starting the creation of {dataset_type} dataset...")
+            mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, chunk_size, total_chunks, dataset_type))
             mp_manager.daemon = True
             mp_manager.start()
             mp_manager_list.append(mp_manager)
 
             for worker_idx in range(workers):
-                self.logger.info(f"start create_sample process {worker_idx}")
+                self.logger.info(f"Starting create_sample process {worker_idx} for {dataset_type} dataset")
                 mp_manager = mp.Process(target=self._samples2queue, args=(mp_queue, num_samples // workers))
                 mp_manager.daemon = True
                 mp_manager.start()
@@ -198,7 +205,7 @@ class CreateDataset(object):
 if __name__ == "__main__":
     """
     example usage:
-    python gpr/data/data_creator.py.py -c default_config -f
+    python gpr/data/data_creator.py.py -c data_config -f
     """
     import argparse
     import socket
