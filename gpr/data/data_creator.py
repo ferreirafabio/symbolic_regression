@@ -74,20 +74,19 @@ class CreateDataset(object):
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
 
-        base_name = self.get_base_name()
+        train_base_name = self.get_base_name("train")
+        train_file_name = f"train_{train_base_name}"
+        train_file_dir = (data_dir / train_file_name).as_posix()
+        self.create_set(train_file_dir, chunk_size, workers, self.config.train_samples, force_creation)
 
-        file_name = f"train_{base_name}"
-        file_dir = (data_dir / file_name).as_posix()
-        self.create_set(file_dir, chunk_size, workers, self.config.train_samples, force_creation)
-
-        file_name = f"valid_{base_name}"
-        file_dir = (data_dir / file_name).as_posix()
-        self.create_set(file_dir, chunk_size, workers, self.config.valid_samples, force_creation)
-
+        valid_base_name = self.get_base_name("valid")
+        valid_file_name = f"valid_{valid_base_name}"
+        valid_file_dir = (data_dir / valid_file_name).as_posix()
+        self.create_set(valid_file_dir, chunk_size, workers, self.config.valid_samples, force_creation)
 
         self.pad_index = 0
 
-    def get_base_name(self):
+    def get_base_name(self, dataset_type):
 
         params = [
             f"s{self.config.generator.seed}",
@@ -95,6 +94,7 @@ class CreateDataset(object):
             f"e{self.config.generator.num_edges}",
             f"t{self.config.generator.max_terms}",
             f"r{self.config.generator.num_realizations}",
+            f"m{self.config.train_samples if dataset_type == 'train' else self.config.valid_samples}",
             "real" if self.config.generator.real_numbers_realizations else "int"
         ]
         # Add allowed operations if present
