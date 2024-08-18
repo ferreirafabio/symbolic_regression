@@ -45,5 +45,8 @@ dataloader.batch_size=16
 optim.lr=0.001"
 
 
+ srun --cpu_bind=none,v --accel-bind=gn --threads-per-core=1 --nodes=1 -A cstdl --partition=develbooster --gres gpu:4 --pty --time=01:00:00 /bin/bash
+python gpr/data/data_creator.py -c default_config dataloader.generator.num_realizations=500
 
-python gpr/data/data_creator.py -c default_config dataloader.generator.num_realizations 500
+python train_gpr.py
+

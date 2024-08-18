@@ -73,7 +73,7 @@ if echo "$SLURM_NODELIST" | grep -q "jrc"; then
     source /p/scratch/laionize/franke5/pt22r/bin/activate
 else
     echo "JUWELS Job"
-    source /p/project/projectnucleus/franke5/pt22/bin/activate
+    source /p/scratch/projectnucleus/franke5/pt22/bin/activate
 fi
 
 PYTHON_SCRIPT=/p/project/projectnucleus/franke5/ScalingSymbolicRegression/train_gpr.py
