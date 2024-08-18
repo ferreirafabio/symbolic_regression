@@ -66,6 +66,7 @@ model:
     initializer_range: 0.02
 
 
+
 dataloader:
     generator_type: PolynomialGenerator
     generator:
@@ -81,8 +82,8 @@ dataloader:
         num_variables: 2
         max_powers: 1
         seed: 1
-    train_samples: 1000
-    valid_samples: 500
+    train_samples: 10000
+    valid_samples: 1000
     batch_size: 64
     num_workers: 8
     data_dir: "./data"

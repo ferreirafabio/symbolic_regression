@@ -231,7 +231,7 @@ class SymPySimpleDataModule(object):
         return batch
 
 
-    def index_pa_collator(self, indices, dataset):
+    def index_pa_collator(self, indices, dataset, num_realizations):
         """get a set of samples. return a batch for tbl and trg_tex. pad target
         sequence with ignore index and input table with pad index."""
 
@@ -245,6 +245,7 @@ class SymPySimpleDataModule(object):
                 # batch[key].append(torch.from_numpy(np.array(sample[key].to_pylist()[0])).t())
                 # Ensure mantissa and exponent are float32
                 if key in ['mantissa', 'exponent']:
+                    tensor_data = tensor_data[:num_realizations, :]
                     tensor_data = tensor_data.float()
 
                 batch[key].append(tensor_data.t())  # Transpose for PyTorch
@@ -300,7 +301,7 @@ class SymPySimpleDataModule(object):
         indices = np.random.permutation(indices)
         index_dataset = IndexDataset(indices)
 
-        train_pl_collate_fn = partial(self.index_pa_collator, dataset=dataset)
+        train_pl_collate_fn = partial(self.index_pa_collator, dataset=dataset, num_realizations=self.config.generator.num_realizations)
 
         data_loader = DataLoader(
             index_dataset,

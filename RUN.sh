@@ -43,3 +43,7 @@ dataloader.num_realisations=200
 dataloader.val_samples=500
 dataloader.batch_size=16
 optim.lr=0.001"
+
+
+
+python gpr/data/data_creator.py -c default_config dataloader.generator.num_realizations 500

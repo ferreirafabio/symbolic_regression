@@ -43,12 +43,12 @@ def _chunk2pa_batch(chunk, schema):
 def get_base_name(config, dataset_type):
 
     params = [
+        f"smpls{config.train_samples if dataset_type == 'train' else config.valid_samples}",
         f"s{config.generator.seed}",
         f"n{config.generator.num_nodes}",
         f"e{config.generator.num_edges}",
         f"t{config.generator.max_terms}",
-        f"r{config.generator.num_realizations}",
-        f"smpls{config.train_samples if dataset_type == 'train' else config.valid_samples}",
+        # f"r{config.generator.num_realizations}",
         "real" if config.generator.real_numbers_realizations else "int"
     ]
     # Add allowed operations if present
