@@ -270,6 +270,8 @@ def main(config_file):
                 exponent = batch['exponent']
                 latex_token = batch['latex_token']
 
+                print("DEBUG TRAIN", accelerator.local_process_index, exponent.shape, batch['equation'][0])
+
                 shifted_seq = torch.cat(
                     [torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1) # TODO shift with SOS
                 trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)],
