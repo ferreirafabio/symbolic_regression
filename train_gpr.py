@@ -184,7 +184,7 @@ def main(config_file):
                             exponent = batch_val['exponent']
                             latex_token = batch_val['latex_token']
 
-                            print("DEBUG", accelerator.local_process_index, exponent.shape, batch_val['latex_expression'][0])
+                            print("DEBUG", accelerator.local_process_index, exponent.shape, batch_val['equation'][0])
 
                             shifted_seq = torch.cat([torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1)
                             trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)], dim=-1)
