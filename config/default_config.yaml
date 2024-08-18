@@ -1,5 +1,5 @@
 experiment:
-  experiments_base_dir: /home/joerg/workspace/experiments/
+  experiments_base_dir: ".experiments/"
   project_name: gpr_project
   session_name: design_model
   experiment_name: test_setup

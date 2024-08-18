@@ -405,10 +405,7 @@ if __name__ == "__main__":
                     pass
         return value
 
-    if socket.gethostname() == "tower":
-        default_config_name = "default_config.yaml"
-    else:
-        default_config_name = "juwels_config.yaml"
+    default_config_name = "default_config.yaml"
 
     parser = argparse.ArgumentParser(description="Train GPT Model")
     parser.add_argument(
