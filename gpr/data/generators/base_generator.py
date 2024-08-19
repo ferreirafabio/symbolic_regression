@@ -18,7 +18,8 @@ class BaseGenerator(AbstractGenerator):
     def __call__(self, num_variables: int=5, max_terms: int=3,
                  num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+                 keep_data: bool=False, sample_interval: list=[-10, 10],
+                 **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
 
         # Check if keep_graph == False and keep_data == True. If we generate a
@@ -34,7 +35,9 @@ class BaseGenerator(AbstractGenerator):
         # (num_realizations, len(self.variables)). Here len(self.variables) ==
         # num_nodes. Do this when self.x_data is None too.
         if (not keep_data) or (self.x_data is None):
-            self.generate_data(num_realizations=num_realizations)
+            self.generate_data(num_realizations=num_realizations,
+                               real_numbers_realizations=real_numbers_realizations,
+                               sample_interval=sample_interval)
 
         # generate an equation with max_terms < num_nodes and evaluate the
         # equation on the generated data.
@@ -94,14 +97,16 @@ class BaseGenerator(AbstractGenerator):
                                     self.expression.rhs,
                                     modules="numpy")
 
-    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True) -> None:
+    def generate_data(self, num_realizations: int, real_numbers_realizations:
+                      bool=True, sample_interval: list=[-10, 10]) -> None:
         """Generates a dataset based on the random graph."""
         if not self.graph:
             raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
         dist = self.rng.uniform if real_numbers_realizations else self.rng.randint
-        x_data = dist(-10, 10, size=(num_realizations,
-                                     len(self.variables))).astype('float32')
+        x_data = dist(sample_interval[0], sample_interval[1],
+                      size=(num_realizations,
+                            len(self.variables))).astype('float32')
         self.x_data = x_data
 
     def evaluate_equation(self) -> tuple[np.ndarray, np.ndarray]:

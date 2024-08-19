@@ -47,6 +47,11 @@ def get_base_name(config, dataset_type):
         ops = "_".join(sorted(safe_ops))
         params.append(f"ops_{ops}")
 
+    # Add sample interval if present
+    if config.generator.sample_interval:
+        intervals = "_".join([str(x) for x in config.generator.sample_interval])
+        params.append(f"intervals_{intervals}")
+
     # Join all parameters
     base_name = f"{'_'.join(params)}_v{VERSION}.arrow"
     return base_name

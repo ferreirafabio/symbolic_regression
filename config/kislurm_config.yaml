@@ -73,6 +73,7 @@ dataloader:
         num_realizations: 100
         allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
         real_numbers_realizations: False
+        sample_interval: [-10, 10]
         keep_graph: False
         keep_data: False
         real_numbers_variables: False

@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import accelerate
 
-from gpr.data.generators import PolynomialGenerator
+#from gpr.data.generators import PolynomialGenerator
 from gpr.data.loaders import SymPySimpleDataModule
 from gpr.model.gpr_transformer import GPRTransformer
 from gpr.utils.configuration import Config

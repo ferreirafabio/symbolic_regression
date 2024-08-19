@@ -57,7 +57,8 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
     def __call__(self, num_variables: int=5, max_terms: int=3,
                  num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+                 keep_data: bool=False, sample_interval: list=[-10, 10],
+                 **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass
 
@@ -82,7 +83,8 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         pass
 
     @abstractmethod
-    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True) -> None:
+    def generate_data(self, num_realizations: int, real_numbers_realizations:
+                      bool=True, sample_interval: list=[-10, 10]) -> None:
         """Generates a dataset based on the random graph."""
         pass
 
