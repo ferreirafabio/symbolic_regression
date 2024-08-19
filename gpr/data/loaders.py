@@ -131,7 +131,7 @@ class SymPySimpleDataModule(object):
             return cleaned_eq, variables
 
         except Exception as e:
-            self.logger.info(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
+            self.logger.debug(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
             return None, None
 
     def parse_latex_equation(self, latex_equation):
