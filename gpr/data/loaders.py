@@ -71,25 +71,18 @@ class IndexDataset(torch.utils.data.Dataset):
 
 
 class SymPySimpleDataModule(object):
-    def __init__(self, config_path, exp_folder):
+    def __init__(self, config_path, logger):
         global_config = Config(config_file=config_path)
         self.config = global_config.dataloader
         self.worker_seeds = np.zeros(self.config.num_workers, dtype=int)
         self.seed = self.config.generator.seed # base seed for training set
         self.val_seed = self.seed + 1000  # base seed for validation set
 
-        self.logger = logging.getLogger('logger')
-        self.logger.setLevel(logging.INFO)
-        exp_folder = pathlib.Path(exp_folder)
-        os.makedirs(exp_folder, exist_ok=True)
-        fh = logging.FileHandler(exp_folder / 'equation_log.txt')
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-
-        # Prevent the logger from propagating to the root logger
-        self.logger.propagate = False
+        if logger is None:
+            self.logger = logging.getLogger('logger')
+            self.logger.setLevel(logging.INFO)
+        else:
+            self.logger = logger
 
         self.ignore_index = -100
         self.pad_index = 0

@@ -93,7 +93,7 @@ def main(config_dict):
 
     # Instantiate the equation generator
     sympy_data = SymPySimpleDataModule(config_path=config_file,
-                                       exp_folder=exp_folder,
+                                       logger=logger,
                                        )
     accelerator.wait_for_everyone()
 
