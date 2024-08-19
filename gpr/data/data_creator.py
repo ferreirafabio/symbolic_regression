@@ -20,7 +20,7 @@ from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
 from tqdm import tqdm
 
-from gpr.data.generators import RandomGenerator, PolynomialGenerator
+from gpr.data.generators import PolynomialGenerator
 
 from gpr.utils.configuration import Config
 from sympy.parsing.latex import parse_latex
@@ -34,8 +34,7 @@ def get_base_name(config, dataset_type):
     params = [
         f"smpls{config.train_samples if dataset_type == 'train' else config.valid_samples}",
         f"s{config.generator.seed}",
-        f"n{config.generator.num_nodes}",
-        f"e{config.generator.num_edges}",
+        f"n{config.generator.num_variables}",
         f"t{config.generator.max_terms}",
         # f"r{config.generator.num_realizations}",
         "real" if config.generator.real_numbers_realizations else "int"
@@ -74,7 +73,8 @@ class CreateDataset(object):
         self.rng = default_rng(self.seed)
 
         if self.config.generator_type == 'RandomGenerator':
-            self.generator = RandomGenerator(rng=self.rng)
+            raise NotImplementedError
+            #self.generator = RandomGenerator(rng=self.rng)
         elif self.config.generator_type == 'PolynomialGenerator':
             self.generator = PolynomialGenerator(rng=self.rng)
 

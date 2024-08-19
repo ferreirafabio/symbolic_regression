@@ -54,7 +54,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         self.rng = rng
 
     @abstractmethod
-    def __call__(self, num_nodes: int=5, num_edges: int=5, max_terms: int=3,
+    def __call__(self, num_variables: int=5, max_terms: int=3,
                  num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
                  keep_data: bool=False, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
@@ -62,7 +62,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         pass
 
     @abstractmethod
-    def generate_random_graph(self, num_nodes: int, num_edges: int) -> None:
+    def generate_random_graph(self, num_variables: int) -> None:
         """Generates a complex hierarchical random graph."""
         pass
 
