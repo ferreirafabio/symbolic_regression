@@ -27,18 +27,7 @@ from sympy.parsing.latex import parse_latex
 from gpr.data.utils import tokenize_latex_to_char
 
 ## TODO dedub
-
-
-def _chunk2pa_batch(chunk, schema):
-    mantissa_batch, exponent_batch, token_tensor_batch, latex_expression_batch = zip(*chunk)
-    batch = pa.RecordBatch.from_arrays([
-        pa.array([[list(row) for row in m] for m in mantissa_batch]),
-        pa.array([[list(row) for row in e] for e in exponent_batch]),
-        pa.array(token_tensor_batch),
-        pa.array(latex_expression_batch)
-    ], schema=schema)
-    return batch
-
+VERSION = 1
 
 def get_base_name(config, dataset_type):
 
@@ -60,7 +49,7 @@ def get_base_name(config, dataset_type):
         params.append(f"ops_{ops}")
 
     # Join all parameters
-    base_name = f"{'_'.join(params)}.arrow"
+    base_name = f"{'_'.join(params)}_v{VERSION}.arrow"
     return base_name
 
 
@@ -90,9 +79,7 @@ class CreateDataset(object):
             self.generator = PolynomialGenerator(rng=self.rng)
 
         num_cpus = mp.cpu_count()
-        workers = num_cpus // 8
-
-        chunk_size = 1000
+        workers = (num_cpus // 8) & ~1
 
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
@@ -100,12 +87,12 @@ class CreateDataset(object):
         train_base_name = get_base_name(self.config, "train")
         train_file_name = f"train_{train_base_name}"
         train_file_dir = (data_dir / train_file_name).as_posix()
-        self.create_set(train_file_dir, chunk_size, workers, self.config.train_samples, force_creation, dataset_type="train")
+        self.create_set(train_file_dir, workers, self.config.train_samples, force_creation, dataset_type="train")
 
         valid_base_name = get_base_name(self.config, "valid")
         valid_file_name = f"valid_{valid_base_name}"
         valid_file_dir = (data_dir / valid_file_name).as_posix()
-        self.create_set(valid_file_dir, chunk_size, workers, self.config.valid_samples, force_creation, dataset_type="valid")
+        self.create_set(valid_file_dir, workers, self.config.valid_samples, force_creation, dataset_type="valid")
 
         self.pad_index = 0
 
@@ -126,45 +113,41 @@ class CreateDataset(object):
             sample = self._create_sample()
             mp_queue.put(sample)
         mp_queue.put('END')
-        mp_queue.close()
 
 
 
     @staticmethod
-    def _queue2file_writer(file_dir, schema, mp_queue, workers, chunk_size=500, total_chunks=None, dataset_type="train"):
-        total_samples = 0
+    def _queue2file_writer(file_dir, schema, mp_queue, workers, total_samples, dataset_type="train"):
+        sample_counter = 0
         with pa.OSFile(file_dir, 'wb') as sink:
             with pa.ipc.new_file(sink, schema) as writer:
                 try:
-                    chunk = []
                     end_counter = 0
-                    pbar = tqdm(total=total_chunks, desc=f"Writing {dataset_type} dataset", unit="chunk")
-                    while True:
-                        sample = mp_queue.get()
-                        if sample == 'END':
-                            end_counter += 1
-                            if end_counter == workers:
-                                break
-                        else:
-                            chunk.append(sample)
-                            total_samples += 1
+                    with tqdm(total=total_samples, desc=f"Writing {dataset_type} dataset", unit="samples") as pbar:
+                        while True:
+                            sample = mp_queue.get()
+                            if sample == 'END':
+                                end_counter += 1
+                                if end_counter == workers:
+                                    break
+                            else:
+                                mantissa_batch, exponent_batch, token_tensor_batch, latex_expression_batch = sample
 
-                        if len(chunk) == chunk_size:
-                            batch = _chunk2pa_batch(chunk, schema)
-                            # print(f"queue2file_writer wrote chunk {len(chunk)} in {file_dir}")
-                            writer.write_batch(batch)
-                            chunk = []
-                            pbar.update(1)
-                    pbar.close()
+                                batch = pa.RecordBatch.from_arrays([
+                                    pa.array([[list(row) for row in mantissa_batch]]),
+                                    pa.array([[list(row) for row in exponent_batch]]),
+                                    pa.array([token_tensor_batch]),
+                                    pa.array([latex_expression_batch])
+                                ], schema=schema)
+                                writer.write_batch(batch)
+                                sample_counter += 1
+                                pbar.update(1)
                 finally:
-                    if len(chunk) > 0:
-                        batch = _chunk2pa_batch(chunk, schema)
-                        writer.write_batch(batch)
                     mp_queue.close()
-        print(f"queue2file_writer wrote total {total_samples} in {file_dir}")
+        print(f"queue2file_writer wrote total {sample_counter} in {file_dir}")
 
 
-    def create_set(self, file_dir, chunk_size, workers, num_samples, force_creation, dataset_type="train"):
+    def create_set(self, file_dir, workers, num_samples, force_creation, dataset_type="train"):
 
         if not os.path.exists(file_dir) or force_creation:
             schema = pa.schema([
@@ -177,11 +160,9 @@ class CreateDataset(object):
             mp_manager_list = []
             mp_queue = mp.Queue(maxsize=workers*2)
 
-            total_chunks = num_samples // chunk_size
-
             self.logger.info(f"Starting to write the {dataset_type} dataset to {file_dir}")
             print(f"Starting the creation of {dataset_type} dataset...")
-            mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, chunk_size, total_chunks, dataset_type))
+            mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, num_samples, dataset_type))
             mp_manager.daemon = True
             mp_manager.start()
             mp_manager_list.append(mp_manager)
@@ -224,14 +205,11 @@ if __name__ == "__main__":
                 d[k] = v
         return d
 
-
     def getFromDict(dataDict, mapList):
         return reduce(operator.getitem, mapList, dataDict)
 
-
     def setInDict(dataDict, mapList, value):
         getFromDict(dataDict, mapList[:-1])[mapList[-1]] = value
-
 
     def convert_string_value(value):
         if value in ("false", "False"):

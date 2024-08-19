@@ -3,7 +3,7 @@ import sys
 import socket
 import argparse
 import collections
-import yaml
+import yaml, tqdm
 # os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
@@ -27,22 +27,10 @@ def bold(msg):
     return f"\033[1m{msg}\033[0m"
 
 
-def main(config_file):
+def main(config_dict):
     """
     Launch pretraining
     """
-    with open(config_file, "r") as f:
-        config_dict = yaml.load(f, Loader=yaml.Loader)
-
-    for arg in unknown_args:
-        if "=" in arg:
-            keys = arg.split("=")[0].split(".")
-            value = convert_string_value(arg.split("=")[1])
-            print(keys, value)
-            setInDict(config_dict, keys, value)
-        else:
-            raise UserWarning(f"argument unknown: {arg}")
-
     cfg = Config(config_dict=config_dict)
 
     torch.set_float32_matmul_precision("medium")
@@ -183,9 +171,6 @@ def main(config_file):
                             mantissa = batch_val['mantissa']
                             exponent = batch_val['exponent']
                             latex_token = batch_val['latex_token']
-
-                            print("DEBUG", accelerator.local_process_index, exponent.shape, batch_val['equation'][0])
-
                             shifted_seq = torch.cat([torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1)
                             trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)], dim=-1)
                             logits = model(mantissa, exponent, shifted_seq)
@@ -318,6 +303,7 @@ def main(config_file):
                 tb_logger.add_scalar("train/acc", (train_acc/train_samples).item(), step)
                 tb_logger.add_scalar("train/solved", (train_solved/train_samples).item(), step)
                 tb_logger.add_scalar("train/epoch", epoch, step)
+                tb_logger.add_scalar("train/batch_size", mantissa.shape[0], step)
                 tb_logger.add_scalar("optim/lr", optimizer.param_groups[0]["lr"], step)
                 train_acc, train_solved, train_samples = 0, 0, 0
 
@@ -422,6 +408,17 @@ if __name__ == "__main__":
     if not config_name.endswith(".yaml"):
         config_name += ".yaml"
 
-    config_file = os.path.join("config", args.config)
+    config_file = os.path.join("config", config_name)
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
 
-    main(config_file)
+    for arg in unknown_args:
+        if "=" in arg:
+            keys = arg.split("=")[0].split(".")
+            value = convert_string_value(arg.split("=")[1])
+            print(keys, value)
+            setInDict(config_dict, keys, value)
+        else:
+            raise UserWarning(f"argument unknown: {arg}")
+
+    main(config_dict)

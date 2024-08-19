@@ -13,8 +13,8 @@ dataloader:
         num_variables: 2
         max_powers: 1
         seed: 1
-    train_samples: 100000
-    valid_samples: 5000
+    train_samples: 100
+    valid_samples: 100
     batch_size: 64
     num_workers: 8
     data_dir: "./data"

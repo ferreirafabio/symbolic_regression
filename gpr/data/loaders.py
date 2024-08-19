@@ -242,7 +242,6 @@ class SymPySimpleDataModule(object):
             for key in ['mantissa', 'exponent', 'token_tensor']:
                 array_data = np.array(sample[key].to_pylist()[0])
                 tensor_data = torch.from_numpy(array_data)
-                # batch[key].append(torch.from_numpy(np.array(sample[key].to_pylist()[0])).t())
                 # Ensure mantissa and exponent are float32
                 if key in ['mantissa', 'exponent']:
                     tensor_data = tensor_data[:num_realizations, :]
@@ -294,9 +293,6 @@ class SymPySimpleDataModule(object):
 
         train_set_size = dataset.num_record_batches
 
-        num_cpu_worker = 4
-        batch_size = 4
-
         indices = list(range(train_set_size))
         indices = np.random.permutation(indices)
         index_dataset = IndexDataset(indices)
@@ -305,9 +301,9 @@ class SymPySimpleDataModule(object):
 
         data_loader = DataLoader(
             index_dataset,
-            batch_size=batch_size,
+            batch_size=self.config.batch_size,
             collate_fn=train_pl_collate_fn,
-            num_workers=num_cpu_worker,
+            num_workers=self.config.num_workers,
             pin_memory=True,
             drop_last=True if set_name == 'train' else False,
         )
