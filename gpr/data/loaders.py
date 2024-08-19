@@ -169,11 +169,11 @@ class SymPySimpleDataModule(object):
 
             # Check if equations are valid
             if pred_eq is None or true_eq is None:
-                self.logger.info(f"Invalid equations, skipping MSE computation for this pair.")
+                self.logger.debug(f"Invalid equations, skipping MSE computation for this pair.")
                 continue
 
-            self.logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {pred_seq})")
-            self.logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
+            self.logger.debug(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {pred_seq})")
+            self.logger.debug(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
 
             # Generate a union of all variables
             all_vars = list(set(pred_vars) | set(true_vars))
@@ -186,10 +186,10 @@ class SymPySimpleDataModule(object):
                 true_input_values = [var_values[var] for var in true_vars]
 
                 # Log variable values
-                for var in pred_vars:
-                    self.logger.info(f"Values for {var} in pred_eq: {var_values[var]}")
-                for var in true_vars:
-                    self.logger.info(f"Values for {var} in true_eq: {var_values[var]}")
+                # for var in pred_vars:
+                #     self.logger.debug(f"Values for {var} in pred_eq: {var_values[var]}")
+                # for var in true_vars:
+                #     self.logger.debug(f"Values for {var} in true_eq: {var_values[var]}")
 
                 # Create lambdified functions and evaluate them
                 pred_func = sp.lambdify([var for var in pred_vars], pred_eq.rhs, modules=['numpy'])
@@ -201,14 +201,14 @@ class SymPySimpleDataModule(object):
                 mse = np.mean((pred_values - true_values) ** 2)
                 norm_true_values = np.linalg.norm(true_values)
                 normalized_mse = mse / (norm_true_values + 1e-8)
-                self.logger.info(f"pred_values: {pred_values}, true_values: {true_values}, normalized MSE: {normalized_mse}")
+                self.logger.debug(f"pred_values: {pred_values}, true_values: {true_values}, normalized MSE: {normalized_mse}")
 
                 total_mse += normalized_mse
                 valid_eq_count += 1
 
             except Exception as e:
-                self.logger.info(f"Failed to evaluate equations: {pred_seq} and {true_seq}")
-                self.logger.info(f"Error: {str(e)}")
+                self.logger.debug(f"Failed to evaluate equations: {pred_seq} and {true_seq}")
+                self.logger.debug(f"Error: {str(e)}")
                 continue
 
         if valid_eq_count == 0:
