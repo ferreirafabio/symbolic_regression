@@ -1,0 +1,19 @@
+dataloader:
+    generator_type: PolynomialGenerator
+    generator:
+        num_variables: 2
+        max_terms: 4
+        num_realizations: 200
+        allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
+        real_numbers_realizations: False
+        sample_interval: [-10, 10]
+        keep_graph: False
+        keep_data: False
+        real_numbers_variables: False
+        max_powers: 1
+        seed: 1
+    train_samples: 100
+    valid_samples: 100
+    batch_size: 64
+    num_workers: 8
+    data_dir: "./data"

@@ -43,3 +43,11 @@ dataloader.num_realisations=200
 dataloader.val_samples=500
 dataloader.batch_size=16
 optim.lr=0.001"
+
+
+srun --cpu_bind=none,v --accel-bind=gn --threads-per-core=1 --nodes=1 -A cstdl --partition=develbooster --gres gpu:4 --pty --time=01:00:00 /bin/bash
+python gpr/data/data_creator.py -c default_config dataloader.generator.num_realizations=500
+
+python train_gpr.py
+accelerate launch --config_file $ACCELERATE_CONFIG_FILE --main_process_ip $MASTER_ADDR --main_process_port $MASTER_PORT --machine_rank 0 train_gpr.py
+accelerate launch --config_file $ACCELERATE_CONFIG_FILE --machine_rank 0 train_gpr.py

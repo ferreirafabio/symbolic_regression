@@ -68,16 +68,15 @@ model:
 
 dataloader:
     generator:
-        num_nodes: 2
-        num_edges: 2
+        num_variables: 2
         max_terms: 3
         num_realizations: 100
         allowed_operations: ["+"]
         real_numbers_realizations: False
+        sample_interval: [-10, 10]
         keep_graph: True
         keep_data: False
         real_numbers_variables: False
-        num_variables: 2
         max_powers: 1
         seed: 1
     val_samples: 100

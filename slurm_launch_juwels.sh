@@ -10,11 +10,11 @@
 #SBATCH --partition=develbooster
 #SBATCH --threads-per-core=1
 #SBATCH --time=2:00:00
-#SBATCH --output=/p/scratch/laionize/franke5/experiments/output/mpi-out.%j
-#SBATCH --error=/p/scratch/laionize/franke5/experiments/error/mpi-err.%j
+#SBATCH --output=/p/project/projectnucleus/franke5/experiments/output/mpi-out.%j
+#SBATCH --error=/p/project/projectnucleus/franke5/experiments/error/mpi-err.%j
 
 
-CODE_DIR="/p/scratch/laionize/franke5/workspace/ScalingSymbolicRegression"
+CODE_DIR="/p/project/projectnucleus/franke5/ScalingSymbolicRegression"
 
 export SRUN_CPUS_PER_TASK=${SLURM_CPUS_PER_TASK}
 
@@ -73,10 +73,10 @@ if echo "$SLURM_NODELIST" | grep -q "jrc"; then
     source /p/scratch/laionize/franke5/pt22r/bin/activate
 else
     echo "JUWELS Job"
-    source /p/scratch/laionize/franke5/pt22/bin/activate
+    source /p/scratch/projectnucleus/franke5/pt22/bin/activate
 fi
 
-PYTHON_SCRIPT=/p/scratch/laionize/franke5/workspace/ScalingSymbolicRegression/train_gpr.py
+PYTHON_SCRIPT=/p/project/projectnucleus/franke5/ScalingSymbolicRegression/train_gpr.py
 
 for (( i=0; i<$NUM_NODES; i++ )); do
     # Build the command
