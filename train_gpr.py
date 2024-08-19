@@ -42,6 +42,8 @@ def main(config_dict):
     is_rank_zero = accelerator.is_main_process
     rank = accelerator.process_index
 
+
+
     accelerate.utils.set_seed(cfg.train.seed)
 
     if is_rank_zero:
@@ -70,6 +72,8 @@ def main(config_dict):
         fh = logging.FileHandler(exp_folder / "info.log")
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
+
+        logger.info(f"########  Accelerate: world size {world_size} - rank {rank}")
 
         logger.info(bold("######################################################"))
         logger.info(bold("########          START   TRAINING          ##########"))
@@ -201,13 +205,13 @@ def main(config_dict):
                         pred_strs = sympy_data.indices_to_string(predicted_tokens, batch_val['trg_len'])
                         true_strs = sympy_data.indices_to_string(trg_seq, batch_val['trg_len'])
 
-                        print("Predicted LaTeX Strings:")
-                        for i, pred_str in enumerate(pred_strs):
-                            print(f"Sequence {i+1}: {pred_str}")
-
-                        print("\nTrue LaTeX Strings:")
-                        for i, true_str in enumerate(true_strs):
-                            print(f"Sequence {i+1}: {true_str}")
+                        # print("Predicted LaTeX Strings:")
+                        # for i, pred_str in enumerate(pred_strs):
+                        #     print(f"Sequence {i+1}: {pred_str}")
+                        #
+                        # print("\nTrue LaTeX Strings:")
+                        # for i, true_str in enumerate(true_strs):
+                        #     print(f"Sequence {i+1}: {true_str}")
 
                         batch_mse, valid_eq_count = sympy_data.compute_mse(pred_strs, true_strs)
                         val_pred_true_equation_mse += batch_mse
