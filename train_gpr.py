@@ -167,6 +167,7 @@ def main(config_dict):
                     acc_accuracy = torch.tensor(0, device=device, dtype=torch.float)
                     acc_log_probs = torch.tensor(0, device=device, dtype=torch.float)
                     acc_count = torch.tensor(0, device=device, dtype=torch.float)
+                    sample_count = torch.tensor(0, device=device, dtype=torch.float)
                     val_pred_true_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
 
                     for batch_val in valid_dl:
@@ -179,6 +180,7 @@ def main(config_dict):
                             trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)], dim=-1)
                             logits = model(mantissa, exponent, shifted_seq)
                             val_loss = loss_func(logits.view(-1, logits.size(-1)), trg_seq.view(-1))
+                            sample_count += mantissa.size(0)
 
                         count = torch.sum(batch_val['trg_len'], dtype=torch.float)
                         log_probs = val_loss * count
@@ -223,7 +225,7 @@ def main(config_dict):
                     gathered_acc_accuracy = accelerator.gather(acc_accuracy)
                     gathered_acc_count = accelerator.gather(acc_count)
 
-                    if step % cfg.train.log_interval == 0 and is_rank_zero:
+                    if is_rank_zero:
 
                         acc_loss = torch.sum(gathered_val_loss)
                         num_batches = torch.sum(gathered_num_batches)
@@ -242,7 +244,7 @@ def main(config_dict):
                             f" - Mean PPL: {ppl.item():.4f}"
                             f" - Mean Acc: {accuracy.item():.4f}"
                             f" - Mean MSE: {mean_mse:.4f}"
-                            f" - Valid Equations: {valid_eq_count} / {len(pred_strs)}"
+                            f" - Valid Equations: {valid_eq_count} / {sample_count}"
                         )
                         tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
                         tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
