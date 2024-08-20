@@ -1,10 +1,10 @@
 import numpy as np
 import sympy as sp
 from sympy import Mul, Add
-from sympy.core.function import _coeff_isneg
 
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
+
 
 class PolynomialGenerator(BaseGenerator):
 
@@ -74,6 +74,9 @@ class PolynomialGenerator(BaseGenerator):
                     # case: integer constants
                     else:
                         term = self.rng.integers(real_constants_min, real_constants_max)
+
+                    if allow_negative_coefficients:
+                        term *= self.rng.choice([-1, 1])
 
                     for var in term_variables:
                         exponent = self.rng.integers(1, max_powers + 1)
@@ -145,6 +148,15 @@ class PolynomialGenerator(BaseGenerator):
 
 
 if __name__ == '__main__':
+    from gpr.data.utils import tokenize_latex_to_char, token_to_index
+    index_to_token = {idx: token for token, idx in token_to_index.items()}
+
+    def detokenize_indices_to_latex(indices):
+        """
+        Convert a list of token indices back to a LaTeX string.
+        """
+        return ''.join(index_to_token[idx] for idx in indices)
+
     generator = PolynomialGenerator()
     
     # Define the parameters for the equation generation
@@ -167,3 +179,12 @@ if __name__ == '__main__':
     for i in range(5):
         mantissa, exponent, expression = generator(**params)
         print(f"Equation {i+1}: {expression}")
+        # latex_string = sp.latex(expression)
+        # print(f"Equation {i+1}: {latex_string}")
+
+        # tokenized = tokenize_latex_to_char(latex_string)
+        # print(f"Tokenized: {tokenized}")
+
+        # Detokenize back to LaTeX string
+        # detokenized_latex = detokenize_indices_to_latex(tokenized)
+        # print(f"Detokenized back to LaTeX: {detokenized_latex}")

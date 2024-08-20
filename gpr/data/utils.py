@@ -23,7 +23,7 @@ latex_commands = [
     # Parentheses and brackets
     r'\left', r'\right', r'\big', r'\Big', r'\bigg', r'\Bigg',
     # Trigonometric and other functions
-    r'\sin', r'\cos', r'\tan', r'\log', r'\ln', r'\exp',
+    r'\sin', r'\cos', r'\tan', r'\log', r'\ln', r'\exp', r'\Mod', r'\Abs',
     # Misc mathematical symbols
     r'\infty', r'\pm', r'\mp', r'\times', r'\div', r'\cdot', r'\equiv', r'\neq', r'\approx', r'\propto',
 ]
@@ -61,6 +61,17 @@ def tokenize_latex_to_char(latex_string):
                     i += 1
                 for digit in latex_string[number_start:i]:
                     tokens.append(token_to_index[digit])
+            # Check for scientific notation (e.g., 1.0e-9)
+            elif latex_string[i].isdigit() or (latex_string[i] == '.' and i + 1 < len(latex_string) and latex_string[i + 1].isdigit()):
+                number_start = i
+                while i < len(latex_string) and (latex_string[i].isdigit() or latex_string[i] in ['.', 'e', '+', '-']):
+                    if latex_string[i] == 'e':
+                        tokens.append(token_to_index['e'])
+                    elif latex_string[i] in ['+', '-']:
+                        tokens.append(token_to_index[latex_string[i]])
+                    else:
+                        tokens.append(token_to_index[latex_string[i]])
+                    i += 1
             # Check for numbers
             elif latex_string[i].isdigit():
                 number_start = i
