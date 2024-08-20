@@ -65,14 +65,15 @@ class PolynomialGenerator(BaseGenerator):
                     num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
                     term_variables = list(symbols.values())[:num_vars_in_term]
 
-                    coefficient = self._generate_coefficient(
-                        real_const_decimal_places, 
-                        real_constants_min, 
-                        real_constants_max, 
-                        max_const_exponent, 
-                        allow_negative_coefficients
-                    )
-                    term = coefficient
+                    # case: floating point constants
+                    if real_const_decimal_places > 0:
+                        term = round(
+                            self.rng.uniform(real_constants_min, real_constants_max),
+                            real_const_decimal_places
+                        )
+                    # case: integer constants
+                    else:
+                        term = self.rng.integers(real_constants_min, real_constants_max)
 
                     for var in term_variables:
                         exponent = self.rng.integers(1, max_powers + 1)
@@ -116,7 +117,7 @@ class PolynomialGenerator(BaseGenerator):
             # Check for invalid objects in the polynomial
             if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
                 continue
-
+        
             # TODO: check why some polynomials get transformed into a BooleanFalse instead of sp.Equality when cast into sp.Eq
             eq = sp.Eq(polynomial, 0)
             if isinstance(polynomial, sp.Equality):
@@ -125,23 +126,22 @@ class PolynomialGenerator(BaseGenerator):
             if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                 break
 
+            # Post-process the polynomial to enforce decimal places recursively
+            polynomial = self._format_floats_recursive(polynomial, real_const_decimal_places)
+
+
         return polynomial
     
-    def _generate_coefficient(self, decimal_places, min_val, max_val, max_exponent, allow_negative):
-        """Generate a coefficient that could be either floating-point or integer."""
-        if decimal_places > 0:
-            base = self.rng.uniform(min_val, max_val)
-            if allow_negative and self.rng.choice([True, False]):
-                base = -base
-            exponent = self.rng.integers(-max_exponent, max_exponent + 1)
-            coefficient = f"{base:.{decimal_places}f}e{exponent:+}"
-            return sp.Float(coefficient, decimal_places)
+    def _format_floats_recursive(self, expr, decimal_places):
+        """
+        Recursively ensures that all float values in the expression have exactly `decimal_places` digits.
+        """
+        if isinstance(expr, sp.Float):
+            return sp.Float(expr, decimal_places)
+        elif expr.is_Atom:
+            return expr
         else:
-            coefficient = self.rng.integers(min_val, max_val)
-            if allow_negative and self.rng.choice([True, False]):
-                coefficient = -coefficient
-            return sp.Integer(coefficient)
-
+            return expr.func(*[self._format_floats_recursive(arg, decimal_places) for arg in expr.args])
 
 
 if __name__ == '__main__':
@@ -153,13 +153,12 @@ if __name__ == '__main__':
         "num_realizations": 1,  # We generate one realization per loop iteration
         "max_terms": 10,
         "max_powers": 4,
-        "real_numbers_variables": False,
         "use_constants": True,
         "allowed_operations": ["+", "-", "cos", "sin", "log", "exp"],
         "keep_graph": False,
         "keep_data": False,
         "max_const_exponent": 3,
-        "real_const_decimal_places": 3,
+        "real_const_decimal_places": 4,
         "real_constants_min": -5,
         "real_constants_max": 5,
     }
@@ -168,5 +167,3 @@ if __name__ == '__main__':
     for i in range(5):
         mantissa, exponent, expression = generator(**params)
         print(f"Equation {i+1}: {expression}")
-
-
