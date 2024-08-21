@@ -47,7 +47,7 @@ model:
     seq_vocab_size: 1
     max_var_pos: 5 # Maximum number of variables in the input, generator num_variables + 1
     model_dim: 512
-    max_len: 200
+    max_len: 400
     num_head: 8
     n_layers: 6
     ff_factor: 4
