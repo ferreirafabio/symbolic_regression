@@ -49,7 +49,6 @@ def get_base_name(config, dataset_type):
         f"mc{config.generator.use_math_constants}",
         f"rcmin{config.generator.real_constants_min}",
         f"rcmax{config.generator.real_constants_max}",
-        f"r{config.generator.num_realizations}",
     ]
     
     # Add allowed operations if present
