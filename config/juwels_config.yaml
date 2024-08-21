@@ -45,6 +45,7 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
+    max_var_pos: 5 # Maximum number of variables in the input, generator num_variables + 1
     model_dim: 512
     max_len: 200
     num_head: 8
