@@ -90,3 +90,11 @@ python gpr/data/data_creator.py -c juwels_config dataloader.generator.num_realiz
 
 # RUN TRAINING
 accelerate launch --config_file $ACCELERATE_CONFIG_FILE --machine_rank 0 train_gpr.py -c juwels_config
+
+
+
+#############################
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=18:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_2
+experiment.experiment_name=setup_default
+optim.lr=0.0001"
