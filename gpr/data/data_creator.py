@@ -47,6 +47,8 @@ def get_base_name(config, dataset_type):
         f"t{config.generator.max_terms}",
         f"dp{config.generator.real_const_decimal_places}",
         f"mc{config.generator.use_math_constants}",
+        f"me{config.generator.max_const_exponent}",
+        f"mp{config.generator.max_powers}",
         f"rcmin{config.generator.real_constants_min}",
         f"rcmax{config.generator.real_constants_max}",
     ]
