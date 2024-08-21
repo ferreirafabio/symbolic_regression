@@ -86,6 +86,6 @@ dataloader:
         seed: 1
     train_samples: 500000
     valid_samples: 10000
-    batch_size: 64
+    batch_size: 128
     num_workers: 8
     data_dir: "./data"
