@@ -45,10 +45,10 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    model_dim: 512
+    model_dim: 128
     max_len: 200
-    num_head: 8
-    n_layers: 6
+    num_head: 2
+    n_layers: 2
     ff_factor: 4
     activation: silu
     glu: false
