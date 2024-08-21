@@ -11,12 +11,13 @@ dataloader:
         max_const_exponent: 3
         use_math_constants: False
         sample_interval: [-10, 10]
+        use_math_constants: True
         keep_graph: False
         keep_data: False
         max_powers: 3
         seed: 1
-    train_samples: 1000
-    valid_samples: 500
+    train_samples: 100
+    valid_samples: 50
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
