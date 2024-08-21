@@ -18,7 +18,7 @@ train:
 
 optim:
   optimizer: AdamW
-  lr: 0.002
+  lr: 0.001
   weight_decay: 0.1
   betas:
     - 0.9
@@ -27,7 +27,7 @@ optim:
   normalization_regularization: False
   bias_regularization: False
   scheduler:
-    num_warmup_steps: 400 #${eval:0.01 * ${trainer.max_steps}}
+    num_warmup_steps: 1000 #${eval:0.01 * ${trainer.max_steps}}
     num_training_steps: ${train.max_steps}
     decay_factor: 0.01
     schedule: "cosine" # "cosine" or "linear"
