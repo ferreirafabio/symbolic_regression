@@ -1,4 +1,3 @@
-import numpy as np
 import sympy as sp
 from sympy import Mul, Add
 
@@ -37,7 +36,7 @@ class PolynomialGenerator(BaseGenerator):
         """
         valid_operations = {"+", "-", "*", "/", "log", "exp", "sin", "cos"}
         if not all(op in valid_operations for op in allowed_operations):
-            raise ValueError(f"allowed_operations can only contain {valid_operations}")
+            raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
         max_powers = kwargs.get('max_powers', 2)
         allow_negative_coefficients = "-" in allowed_operations
@@ -169,6 +168,7 @@ if __name__ == '__main__':
         "allowed_operations": ["+", "-", "cos", "sin", "log", "exp"],
         "keep_graph": False,
         "keep_data": False,
+        "use_epsilon": True,
         "max_const_exponent": 3,
         "real_const_decimal_places": 4,
         "real_constants_min": -5,

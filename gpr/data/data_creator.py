@@ -36,8 +36,11 @@ def get_base_name(config, dataset_type):
         f"s{config.generator.seed}",
         f"n{config.generator.num_variables}",
         f"t{config.generator.max_terms}",
-        # f"r{config.generator.num_realizations}",
-        "real" if config.generator.real_numbers_realizations else "int"
+        f"dp{config.generator.real_const_decimal_places}",
+        f"rcmin{config.generator.real_constants_min}",
+        f"rcmax{config.generator.real_constants_max}",
+        # f"mpe{config.generator.max_const_exponent}",
+        f"r{config.generator.num_realizations}",
     ]
     # Add allowed operations if present
     if config.generator.allowed_operations:
@@ -50,7 +53,7 @@ def get_base_name(config, dataset_type):
     # Add sample interval if present
     if config.generator.sample_interval:
         intervals = "_".join([str(x) for x in config.generator.sample_interval])
-        params.append(f"intervals_{intervals}")
+        params.append(f"sample_intervals_{intervals}")
 
     # Join all parameters
     base_name = f"{'_'.join(params)}_v{VERSION}.arrow"
@@ -99,9 +102,22 @@ class CreateDataset(object):
         valid_file_dir = (data_dir / valid_file_name).as_posix()
         self.create_set(valid_file_dir, workers, self.config.valid_samples, force_creation, dataset_type="valid")
 
+        base_name = get_base_name(self.config, "dataaset")
+        self.save_config(data_dir, base_name)
+
         self.pad_index = 0
 
-
+    def save_config(self, data_dir, base_name):
+        """
+        Save the configuration used to generate the dataset as a YAML file.
+        """
+        config_name = f"{base_name}.yaml"
+        config_path = data_dir / config_name
+        
+        with open(config_path, 'w') as yaml_file:
+            yaml.dump(self.config, yaml_file, default_flow_style=False)
+        
+        print(f"Configuration saved to {config_path}")
 
 
     def _create_sample(self):
@@ -166,7 +182,7 @@ class CreateDataset(object):
             mp_queue = mp.Queue(maxsize=workers*2)
 
             self.logger.info(f"Starting to write the {dataset_type} dataset to {file_dir}")
-            print(f"Starting the creation of {dataset_type} dataset...")
+            print(f"Starting the creation of {dataset_type} dataset named {file_dir}...")
             mp_manager = mp.Process(target=self._queue2file_writer, args=(file_dir, schema, mp_queue, workers, num_samples, dataset_type))
             mp_manager.daemon = True
             mp_manager.start()
