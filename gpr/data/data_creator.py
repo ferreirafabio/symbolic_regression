@@ -30,34 +30,51 @@ from gpr.data.utils import tokenize_latex_to_char
 VERSION = 1
 
 def get_base_name(config, dataset_type):
-
+    """
+    Generate a base name for the file based on the configuration and dataset type.
+    
+    Parameters:
+        config: The configuration object.
+        dataset_type: The type of dataset (e.g., 'train', 'valid', 'config').
+        
+    Returns:
+        The base file name as a string.
+    """
     params = [
         f"smpls{config.train_samples if dataset_type == 'train' else config.valid_samples}",
         f"s{config.generator.seed}",
         f"n{config.generator.num_variables}",
         f"t{config.generator.max_terms}",
         f"dp{config.generator.real_const_decimal_places}",
+        f"mc{config.generator.use_math_constants}",
         f"rcmin{config.generator.real_constants_min}",
         f"rcmax{config.generator.real_constants_max}",
-        # f"mpe{config.generator.max_const_exponent}",
         f"r{config.generator.num_realizations}",
     ]
+    
     # Add allowed operations if present
     if config.generator.allowed_operations:
         char_map = {'+': 'plus', '-': 'minus', '*': 'mul', '/': 'div'}
-        # Replace unsafe characters and join operations
         safe_ops = [char_map.get(op, op) for op in config.generator.allowed_operations]
         ops = "_".join(sorted(safe_ops))
         params.append(f"ops_{ops}")
-
+    
     # Add sample interval if present
     if config.generator.sample_interval:
         intervals = "_".join([str(x) for x in config.generator.sample_interval])
         params.append(f"sample_intervals_{intervals}")
-
-    # Join all parameters
-    base_name = f"{'_'.join(params)}_v{VERSION}.arrow"
+    
+    # Determine file extension based on the dataset_type
+    if dataset_type == "config":
+        extension = ".yaml"
+    else:
+        extension = ".arrow"
+    
+    # Join all parameters and return the base name
+    base_name = f"{'_'.join(params)}_v{VERSION}{extension}"
     return base_name
+
+
 
 
 class CreateDataset(object):
@@ -102,7 +119,7 @@ class CreateDataset(object):
         valid_file_dir = (data_dir / valid_file_name).as_posix()
         self.create_set(valid_file_dir, workers, self.config.valid_samples, force_creation, dataset_type="valid")
 
-        base_name = get_base_name(self.config, "dataaset")
+        base_name = get_base_name(self.config, "dataset")
         self.save_config(data_dir, base_name)
 
         self.pad_index = 0
@@ -111,11 +128,14 @@ class CreateDataset(object):
         """
         Save the configuration used to generate the dataset as a YAML file.
         """
-        config_name = f"{base_name}.yaml"
+        # Get the base name specifically for the config file
+        base_name = get_base_name(self.config, dataset_type="config")
+        
+        config_name = base_name
         config_path = data_dir / config_name
         
         with open(config_path, 'w') as yaml_file:
-            yaml.dump(self.config, yaml_file, default_flow_style=False)
+            yaml.dump(self.config, yaml_file)
         
         print(f"Configuration saved to {config_path}")
 

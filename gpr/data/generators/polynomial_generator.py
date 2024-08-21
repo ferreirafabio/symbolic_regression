@@ -8,7 +8,7 @@ from gpr.data.generators.base_generator import BaseGenerator
 class PolynomialGenerator(BaseGenerator):
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, use_constants: bool=False, **kwargs) -> sp.Eq:
+    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, use_math_constants: bool=False, **kwargs) -> sp.Eq:
         """
         Generates a random polynomial expression using the provided symbols and operations.
 
@@ -17,7 +17,7 @@ class PolynomialGenerator(BaseGenerator):
         symbols : dict, A dictionary of SymPy symbols representing variables.
         allowed_operations : list, List of operations to include: "+", "-", "*", "/", "log", "exp", "sin", "cos".
         max_terms : int, Maximum number of terms in the polynomial.
-        use_constants : bool, optional, Whether to include constants like π and e (default is False).
+        use_math_constants : bool, optional, Whether to include mathematical constants like pi and e (default is False).
         **kwargs : dict, Additional options, e.g., max_powers (int) for variable exponents,
             real_const_decimal_places (int) for decimal precision of real constants,
             real_constants_min (float) and real_constants_max (float) for setting the range of real constants.
@@ -46,7 +46,7 @@ class PolynomialGenerator(BaseGenerator):
         real_constants_max = kwargs.get('real_constants_max', 10.0)
         max_const_exponent = kwargs.get('max_const_exponent', 2)
 
-        constants = [sp.pi, sp.E] if use_constants else []
+        constants = [sp.pi, sp.E] if use_math_constants else []
 
         polynomial = sp.Integer(0)  # Initialize as zero to enter the loop
 
