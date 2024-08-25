@@ -8,17 +8,17 @@ experiment:
 train:
   seed: 1
   clip_value: 0.1
-  val_interval: 1000
+  val_interval: 2500
   log_interval: 500
   log_param_interval: 500
   save_interval: 10000
-  max_steps: 100000
+  max_steps: 50000
   max_epochs: null
 
 
 optim:
   optimizer: AdamW
-  lr: 0.001
+  lr: 0.0001
   weight_decay: 0.1
   betas:
     - 0.9

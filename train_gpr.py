@@ -250,7 +250,7 @@ def main(config_dict):
                             f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
                             f" - Mean PPL: {ppl.item():.4f}"
                             f" - Mean Acc: {accuracy.item():.4f}"
-                            f" - Mean Acc: {solved.item():.4f}"
+                            f" - Mean Solved: {solved.item():.4f}"
                             f" - Mean MSE: {mean_mse.item():.4f}"
                             f" - Mean Valid: {valid.item():.4f}"
                             f" - Samples: {int(acc_samples.item())}"
