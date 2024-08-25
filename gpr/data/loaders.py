@@ -18,7 +18,7 @@ from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
 
 from gpr.data.datasets import EquationDataset
-from gpr.data.utils import all_tokens
+from gpr.data.utils import all_tokens, token_to_index
 from gpr.utils.configuration import Config
 from gpr.data.data_creator import get_base_name
 from sympy.parsing.latex import parse_latex
@@ -85,13 +85,17 @@ class SymPySimpleDataModule(object):
             self.logger = logger
 
         self.ignore_index = -100
-        self.pad_index = 0
+        self.pad_index = token_to_index['<PAD>']
+        self.soe_index = token_to_index['<SOE>']
+        self.eoe_index = token_to_index['<EOE>']
+        self.token_to_index = token_to_index
+        self.all_tokens = all_tokens
 
     def get_vocab(self):
-        return all_tokens
+        return self.all_tokens
 
 
-    def indices_to_string(self, indices_batch, lengths):
+    def indices_to_string(self, indices_batch):
         # if isinstance(indices, torch.Tensor):
         #     indices = indices.tolist()
         # return ''.join([all_tokens[i] for i in indices])
@@ -109,11 +113,21 @@ class SymPySimpleDataModule(object):
         if isinstance(indices_batch, torch.Tensor):
             indices_batch = indices_batch.tolist()
 
-        if isinstance(lengths, torch.Tensor):
-            lengths = lengths.tolist()
-
         # Convert each sequence of indices into a LaTeX string, truncating by the corresponding length
-        return [''.join([all_tokens[i] for i in indices[:length]]) for indices, length in zip(indices_batch, lengths)]
+
+        string_list = []
+        for indices in zip(indices_batch):
+            indices = indices[0]
+            if self.eoe_index in indices:
+                eoe_index = indices.index(self.eoe_index)
+                indices = indices[:eoe_index]
+                string = ''.join([self.all_tokens[i] for i in indices])
+                string_list.append(string)
+            else:
+                string_list.append(None)
+
+        return string_list
+        # return [''.join([all_tokens[i] for i in indices[:length]]) for indices, length in zip(indices_batch, lengths)]
 
     @property
     def vocab_size(self):
@@ -164,6 +178,11 @@ class SymPySimpleDataModule(object):
         valid_eq_count = 0
 
         for pred_seq, true_seq in zip(predicted_seqs, true_seqs):
+
+            if pred_seq is None:
+                self.logger.debug(f"End of equation token not found in predicted sequence, skipping MSE computation for this pair.")
+                continue
+
             pred_eq, pred_vars = self.latex_equation_to_function(pred_seq)
             true_eq, true_vars = self.latex_equation_to_function(true_seq)
 
@@ -250,14 +269,19 @@ class SymPySimpleDataModule(object):
         exponent_stack = pad_sequence(batch['exponent'],
                                       batch_first=True,
                                       padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
-        latex_token_stack = pad_sequence(batch['token_tensor'],
-                                         batch_first=True,
-                                         padding_value=self.pad_index)
+
+        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.long), tokens]) for tokens in batch['token_tensor']]
+        input_seq_stack = pad_sequence(input_seq, batch_first=True, padding_value=self.pad_index)
+
+        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.long)]) for tokens in batch['token_tensor']]
+        target_seq_stack = pad_sequence(target_seq, batch_first=True, padding_value=self.ignore_index)
+
         return {"mantissa": mantissa_stack,
                 "exponent": exponent_stack,
-                "latex_token": latex_token_stack,
-                "equation": batch['latex_expression'],
-                'trg_len': torch.tensor([seq.shape[0] for seq in batch['token_tensor']])}
+                "in_equation": input_seq_stack,
+                "trg_equation": target_seq_stack,
+                "latex_equation": batch['latex_expression'],
+                'trg_len': torch.tensor([seq.shape[0] + 1 for seq in batch['token_tensor']])}
 
 
     def get_data_loader(self, set_name: str):

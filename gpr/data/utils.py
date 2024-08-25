@@ -34,8 +34,11 @@ special_chars = ['x', 'y', '_', '^', '{', '}', '[', ']', '(', ')', '+', '-', '='
 # Digits
 digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
+# special tokens
+special_tokens = ['<SOE>', '<EOE>', '<PAD>'] # Start of equation, end of equation, padding
+
 # Combine all tokens
-all_tokens = latex_commands + special_chars + digits
+all_tokens = latex_commands + special_chars + digits + special_tokens
 
 # Create a dictionary mapping each token to a unique index
 token_to_index = {token: idx for idx, token in enumerate(all_tokens)}

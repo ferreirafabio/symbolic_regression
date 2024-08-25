@@ -10,10 +10,10 @@
 #SBATCH --partition=develbooster
 #SBATCH --threads-per-core=1
 #SBATCH --time=2:00:00
-#SBATCH --output=/p/project/projectnucleus/franke5/experiments/output/mpi-out.%j
-#SBATCH --error=/p/project/projectnucleus/franke5/experiments/error/mpi-err.%j
+#SBATCH --output=/p/project/projectnucleus/franke5/experiments/gpr_project/output/mpi-out.%j
+#SBATCH --error=/p/project/projectnucleus/franke5/experiments/gpr_project/error/mpi-err.%j
 
-
+/p/project/projectnucleus/franke5/experiments/error
 CODE_DIR="/p/project/projectnucleus/franke5/ScalingSymbolicRegression"
 
 export SRUN_CPUS_PER_TASK=${SLURM_CPUS_PER_TASK}

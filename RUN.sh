@@ -86,7 +86,8 @@ ml Python/3.11.3
 source /p/scratch/projectnucleus/franke5/pt22/bin/activate
 
 # RUN GENERATOR
-python gpr/data/data_creator.py -c juwels_config dataloader.generator.num_realizations=500
+python gpr/data/data_creator.py -c juwels_config dataloader.train_samples=10000 dataloader.valid_samples=1000
+python gpr/data/data_creator.py -c juwels_config
 
 # RUN TRAINING
 accelerate launch --config_file $ACCELERATE_CONFIG_FILE --machine_rank 0 train_gpr.py -c juwels_config
@@ -98,3 +99,27 @@ accelerate launch --config_file $ACCELERATE_CONFIG_FILE --machine_rank 0 train_g
 sbatch --nodes=1 --account=projectnucleus --partition=booster --time=18:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_2
 experiment.experiment_name=setup_default
 optim.lr=0.0001"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=18:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_2
+experiment.experiment_name=setup_rel100_lr1e-3
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=50000
+optim.lr=0.001"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=18:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_2
+experiment.experiment_name=setup_rel100_lr3e-4
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=50000
+optim.lr=0.00031"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=18:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_2
+experiment.experiment_name=setup_rel100_lr1e-4
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=50000
+optim.lr=0.00001"
