@@ -72,7 +72,7 @@ dataloader:
     generator:
         num_variables: 4
         max_terms: 4
-        num_realizations: 200
+        num_realizations: 250
         allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
         real_const_decimal_places: 3
         real_constants_min: -10
@@ -84,7 +84,7 @@ dataloader:
         keep_data: False
         max_powers: 3
         seed: 1
-    train_samples: 500000
+    train_samples: 1000000
     valid_samples: 10000
     batch_size: 128
     num_workers: 8
