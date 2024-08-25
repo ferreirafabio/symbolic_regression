@@ -5,3 +5,4 @@ rsync -auv --progress --exclude *.pt --exclude *.ckpt  --exclude *.bin --exclude
 
 
 tensorboard --logdir ~/workspace/experiments/gpr_project/first_hpo_2 --port 6100
+tensorboard --logdir ~/workspace/experiments/gpr_project/first_hpo_3 --port 6101

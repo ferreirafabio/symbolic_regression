@@ -120,3 +120,21 @@ dataloader.batch_size=64
 model.activation=silu
 train.max_steps=50000
 optim.lr=0.0001"
+
+###
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=20:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_rel100_lr3e-4
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=10000
+optim.lr=0.00031"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=20:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_rel100_lr1e-4
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=10000
+optim.lr=0.0001"
