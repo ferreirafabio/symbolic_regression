@@ -84,7 +84,7 @@ dataloader:
         keep_data: False
         max_powers: 2
         seed: 1
-    train_samples: 500000
+    train_samples: 250000
     valid_samples: 10000
     batch_size: 128
     num_workers: 8
