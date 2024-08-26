@@ -103,7 +103,7 @@ class BaseGenerator(AbstractGenerator):
         if not self.graph:
             raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
-        dist = self.rng.uniform if real_numbers_realizations else self.rng.randint
+        dist = self.rng.uniform if real_numbers_realizations else self.rng.integers
         x_data = dist(sample_interval[0], sample_interval[1],
                       size=(num_realizations,
                             len(self.variables))).astype('float32')

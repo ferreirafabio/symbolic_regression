@@ -5,15 +5,19 @@ dataloader:
         max_terms: 4
         num_realizations: 200
         allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
-        real_numbers_realizations: False
+        real_const_decimal_places: 3
+        real_constants_min: -10
+        real_constants_max: 10
+        max_const_exponent: 3
+        use_math_constants: False
         sample_interval: [-10, 10]
+        use_math_constants: True
         keep_graph: False
         keep_data: False
-        real_numbers_variables: False
-        max_powers: 1
+        max_powers: 3
         seed: 1
     train_samples: 100
-    valid_samples: 100
+    valid_samples: 50
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
