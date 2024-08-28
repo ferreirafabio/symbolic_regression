@@ -1,0 +1,3 @@
+[submodule "pmlb"]
+	path = pmlb
+	url = https://github.com/EpistasisLab/pmlb/

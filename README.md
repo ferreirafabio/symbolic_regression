@@ -54,3 +54,25 @@ sbatch --nodes=1 --partition=testdlc_gpu-rtx2080 --time=1:00:00 slurm_launch_kis
 ```
 
 or see `RUN_kislurm.sh` for more options
+
+
+## Generating data and visualizing variable dependencies
+```bash
+python -i generator.py 
+
+```
+Plots are saved by default in `plots/`. You can access the generated expressions using `generator.expression_str` or `generator.expression_latex`. Or if you want constants being in {mantissa, exponent} format use `generator.expression_str_man_exp` or `generator.expression_latex_man_exp`.
+
+
+## Test datasets
+For testing we use the curated datasets from the SRBench, that contains 130 datasets from two sources: Feynman Symbolic Regression Database, and the ODE-Strogatz repository. When pulling or cloning the repository use `--recurse-submodules`, e.g.:
+```bash
+git pull --recurse-submodules
+cd pmlb
+git lfs pull
+```
+
+The following command will load the datasets in a pandas dataframe, which includes all the necessary metadata, realizations and equation strings:
+```bash
+PYTHONPATH=. python gpr/test/load_datasets.py
+```

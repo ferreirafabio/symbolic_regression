@@ -13,7 +13,7 @@ class GPRTransformer(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        max_var_pos = 4 # TODO 4 = mun_var + 1
+        max_var_pos = config.max_var_pos
         self.var_embed = nn.Linear(config.model_dim, config.model_dim, bias=False) # TODO 4 = mun_var + 1
 
         pe = torch.zeros(max_var_pos, config.model_dim)

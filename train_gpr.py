@@ -3,7 +3,7 @@ import sys
 import socket
 import argparse
 import collections
-import yaml
+import yaml, tqdm
 # os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import accelerate
 
-from gpr.data.generators import PolynomialGenerator
+#from gpr.data.generators import PolynomialGenerator
 from gpr.data.loaders import SymPySimpleDataModule
 from gpr.model.gpr_transformer import GPRTransformer
 from gpr.utils.configuration import Config
@@ -27,22 +27,10 @@ def bold(msg):
     return f"\033[1m{msg}\033[0m"
 
 
-def main(config_file):
+def main(config_dict):
     """
     Launch pretraining
     """
-    with open(config_file, "r") as f:
-        config_dict = yaml.load(f, Loader=yaml.Loader)
-
-    for arg in unknown_args:
-        if "=" in arg:
-            keys = arg.split("=")[0].split(".")
-            value = convert_string_value(arg.split("=")[1])
-            print(keys, value)
-            setInDict(config_dict, keys, value)
-        else:
-            raise UserWarning(f"argument unknown: {arg}")
-
     cfg = Config(config_dict=config_dict)
 
     torch.set_float32_matmul_precision("medium")
@@ -53,6 +41,8 @@ def main(config_file):
     world_size = accelerator.num_processes
     is_rank_zero = accelerator.is_main_process
     rank = accelerator.process_index
+
+
 
     accelerate.utils.set_seed(cfg.train.seed)
 
@@ -83,6 +73,8 @@ def main(config_file):
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
 
+        logger.info(f"########  Accelerate: world size {world_size} - rank {rank}")
+
         logger.info(bold("######################################################"))
         logger.info(bold("########          START   TRAINING          ##########"))
         logger.info(bold("######################################################"))
@@ -100,8 +92,9 @@ def main(config_file):
     logger.info(bold(f"############### LOAD DATA on rank {rank}"))
 
     # Instantiate the equation generator
-    sympy_data = SymPySimpleDataModule(generator=PolynomialGenerator,
-                                       config_path=config_file)
+    sympy_data = SymPySimpleDataModule(config_path=config_file,
+                                       logger=logger,
+                                       )
     accelerator.wait_for_everyone()
 
     logger.info(bold(f"############### SETUP DATA on rank {rank}"))
@@ -120,7 +113,7 @@ def main(config_file):
 
 
     # optimizer, lr_scheduler = configure_optimizer(cfg.optim, model, logger)
-    loss_func = FlashCrossEntropyLoss(ignore_index=0, reduction='mean') # TODO get pad index from data module
+    loss_func = FlashCrossEntropyLoss(ignore_index=sympy_data.ignore_index, reduction='mean') # TODO get pad index from data module
 
     model = accelerator.prepare(model)
 
@@ -161,7 +154,7 @@ def main(config_file):
         train_solved = 0
         train_samples = 0
 
-        for batch in train_dl:
+        for train_batch in train_dl:
 
             if not RUN_TRAIN:
                 break
@@ -170,98 +163,124 @@ def main(config_file):
                 model.eval()
                 with torch.no_grad():
                     acc_loss = torch.tensor(0, device=device, dtype=torch.float)
-                    num_batches = torch.tensor(0, device=device, dtype=torch.float)
+                    acc_num_batches = torch.tensor(0, device=device, dtype=torch.float)
                     acc_accuracy = torch.tensor(0, device=device, dtype=torch.float)
+                    acc_solved = torch.tensor(0, device=device, dtype=torch.float)
                     acc_log_probs = torch.tensor(0, device=device, dtype=torch.float)
-                    acc_count = torch.tensor(0, device=device, dtype=torch.float)
-                    for batch_val in valid_dl:
-                        batch_val = sympy_data.batch_to_device(batch_val, device)
+
+                    acc_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
+                    acc_valid_equation = torch.tensor(0, device=device, dtype=torch.float)
+                    acc_samples = torch.tensor(0, device=device, dtype=torch.float)
+                    acc_tokens = torch.tensor(0, device=device, dtype=torch.float)
+                    val_pred_true_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
+
+                    for val_batch in valid_dl:
+                        val_batch = sympy_data.batch_to_device(val_batch, device)
                         with accelerator.autocast():
-                            mantissa = batch_val['mantissa']
-                            exponent = batch_val['exponent']
-                            latex_token = batch_val['latex_token']
+                            logits = model(val_batch['mantissa'], 
+                                           val_batch['exponent'], 
+                                           val_batch['in_equation'])
+                            val_loss = loss_func(logits.view(-1, logits.size(-1)), val_batch['trg_equation'].view(-1))
+                            
+                            
+                        sample_count = val_batch['trg_len'].size(0)
+                        token_count = torch.sum(val_batch['trg_len'], dtype=torch.float)
 
-                            shifted_seq = torch.cat([torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1)
-                            trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)], dim=-1)
-                            logits = model(mantissa, exponent, shifted_seq)
-                            val_loss = loss_func(logits.view(-1, logits.size(-1)), trg_seq.view(-1))
+                        log_probs = val_loss * token_count
+                        predicted_tokens = logits.argmax(dim=-1)
+                        # logger.info(f"logits shape: {logits.shape}")
+                        # logger.info(f"predicted_tokens shape: {predicted_tokens.shape}")
+                        # logger.info(f"trq_seq shape: {trg_seq.shape}")
+                        # logger.info(f"predicted_tokens view shape: {predicted_tokens.view(-1).shape}")
+                        # logger.info(f"trq_seq view: {trg_seq.view(-1).shape}")
 
-                        count = torch.sum(batch_val['trg_len'], dtype=torch.float)
-                        log_probs = val_loss * count
-                        preds = logits.argmax(dim=-1).view(-1)
-                        target = trg_seq.view(-1)
-                        idx = target != sympy_data.ignore_index
-                        accuracy = torch.sum(preds[idx] == target[idx])
+                        correct_tokens = predicted_tokens == val_batch['trg_equation']
+                        ignore_mask = val_batch['trg_equation'] != sympy_data.ignore_index
+
+                        batch_accuracy = torch.sum(correct_tokens & ignore_mask, dim=-1) / val_batch['trg_len']
+                        batch_solved = torch.sum(batch_accuracy == 1.0)
 
                         acc_loss += val_loss
-                        acc_accuracy += accuracy
                         acc_log_probs += log_probs
-                        acc_count += count
-                        num_batches += 1
+                        acc_accuracy += torch.sum(batch_accuracy)
+                        acc_solved += torch.sum(batch_solved)
+
+                        acc_tokens += token_count
+                        acc_samples += sample_count
+                        acc_num_batches += 1
+
+                        # compute MSE between predicted and true equation of the current val batch
+                        true_strs = sympy_data.indices_to_string(val_batch['trg_equation'])
+                        pred_strs = sympy_data.indices_to_string(predicted_tokens)
+
+                        batch_sum_mse, batch_sum_valid_eq = sympy_data.compute_mse(pred_strs, true_strs)
+                        acc_equation_mse += batch_sum_mse
+                        acc_valid_equation += batch_sum_valid_eq
 
                     gathered_val_loss = accelerator.gather(acc_loss)
-                    gathered_num_batches = accelerator.gather(num_batches)
+                    gathered_num_batches = accelerator.gather(acc_num_batches)
                     gathered_acc_log_probs = accelerator.gather(acc_log_probs)
                     gathered_acc_accuracy = accelerator.gather(acc_accuracy)
-                    gathered_acc_count = accelerator.gather(acc_count)
-                    if step % cfg.train.log_interval == 0 and is_rank_zero:
+                    gathered_acc_solved = accelerator.gather(acc_solved)
+                    gathered_mse = accelerator.gather(acc_equation_mse)
+                    gathered_valid = accelerator.gather(acc_valid_equation)
+                    gathered_acc_samples = accelerator.gather(acc_samples)
+                    gathered_acc_tokens = accelerator.gather(acc_tokens)
 
+                    if is_rank_zero:
 
                         acc_loss = torch.sum(gathered_val_loss)
                         num_batches = torch.sum(gathered_num_batches)
                         acc_log_probs = torch.sum(gathered_acc_log_probs)
                         acc_accuracy = torch.sum(gathered_acc_accuracy)
-                        acc_count = torch.sum(gathered_acc_count)
+                        acc_solved = torch.sum(gathered_acc_solved)
+                        acc_mse = torch.sum(gathered_mse)
+                        acc_valid = torch.sum(gathered_valid)
+                        acc_samples = torch.sum(gathered_acc_samples)
+                        acc_tokens = torch.sum(gathered_acc_tokens)
 
                         mean_val_loss = acc_loss / num_batches
-                        ppl = torch.exp(acc_log_probs / acc_count)
-                        accuracy = acc_accuracy / acc_count
+                        ppl = torch.exp(acc_log_probs / acc_tokens)
+                        accuracy = acc_accuracy / acc_samples
+                        solved = acc_solved / acc_samples
+                        mean_mse = acc_mse / acc_samples
+                        valid = acc_valid / acc_samples
 
                         logger.info(
                             f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
                             f" - Mean PPL: {ppl.item():.4f}"
                             f" - Mean Acc: {accuracy.item():.4f}"
+                            f" - Mean Solved: {solved.item():.4f}"
+                            f" - Mean MSE: {mean_mse.item():.4f}"
+                            f" - Mean Valid: {valid.item():.4f}"
+                            f" - Samples: {int(acc_samples.item())}"
                         )
                         tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
                         tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
+                        tb_logger.add_scalar("valid/solved", solved.item(), step)
                         tb_logger.add_scalar(f"valid/accuracy", accuracy.item(), step)
+                        tb_logger.add_scalar(f"valid/mse", mean_mse.item(), step)
+                        tb_logger.add_scalar(f"valid/valid_eqs", valid.item(), step)
                         tb_logger.flush()
                 model.train()
 
-            batch = sympy_data.batch_to_device(batch, device)
+            train_batch = sympy_data.batch_to_device(train_batch, device)
             with accelerator.autocast():
 
-                mantissa = batch['mantissa']
-                exponent = batch['exponent']
-                latex_token = batch['latex_token']
-
-                shifted_seq = torch.cat(
-                    [torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device), latex_token], dim=-1) # TODO shift with SOS
-                trg_seq = torch.cat([latex_token, torch.zeros(latex_token.size(0), 1, dtype=torch.long, device=device)],
-                                    dim=-1) # TODO shift with EOS
-                logits = model(mantissa, exponent, shifted_seq)
-                loss = loss_func(logits.view(-1, logits.size(-1)), trg_seq.view(-1))
-
+                logits = model(train_batch['mantissa'],
+                               train_batch['exponent'],
+                               train_batch['in_equation'])
+                loss = loss_func(logits.view(-1, logits.size(-1)), train_batch['trg_equation'].view(-1))
             train_losses.append(loss.item())
 
 
             pred_tokens = logits.argmax(dim=-1)
             # batch_acc = 0
-            for i in range(latex_token.shape[0]):
-                acc = (pred_tokens[i, :batch['trg_len'][i]] == latex_token[i, :batch['trg_len'][i]]).sum() / batch['trg_len'][i]
+            for i in range(train_batch['trg_len'].shape[0]):
+                acc = (pred_tokens[i, :train_batch['trg_len'][i]] == train_batch['trg_equation'][i, :train_batch['trg_len'][i]]).sum() / train_batch['trg_len'][i]
                 train_acc += acc
                 train_solved += acc == 1
                 train_samples += 1
-            #     if acc < 1:
-            #         true_str = sympy_data.indices_to_string(latex_token[i, :batch['trg_len'][i]])
-            #         pred_str = sympy_data.indices_to_string(pred_tokens[i, :batch['trg_len'][i]])
-            #         print("true tokens", sympy_data.indices_to_string(latex_token[i, :batch['trg_len'][i]]))
-            #         print("pred tokens", sympy_data.indices_to_string(pred_tokens[i, :batch['trg_len'][i]]))
-            #     batch_acc += acc
-            # batch_acc /= latex_token.shape[0]
-            # print("batch acc", batch_acc)
-            # print("true tokens", latex_token[0])
-            # print("pred tokens", pred_tokens[0])
 
             optimizer.zero_grad()
             accelerator.backward(loss)
@@ -281,6 +300,7 @@ def main(config_file):
                 tb_logger.add_scalar("train/acc", (train_acc/train_samples).item(), step)
                 tb_logger.add_scalar("train/solved", (train_solved/train_samples).item(), step)
                 tb_logger.add_scalar("train/epoch", epoch, step)
+                tb_logger.add_scalar("train/batch_size", train_batch['trg_len'].shape[0], step)
                 tb_logger.add_scalar("optim/lr", optimizer.param_groups[0]["lr"], step)
                 train_acc, train_solved, train_samples = 0, 0, 0
 
@@ -372,10 +392,7 @@ if __name__ == "__main__":
                     pass
         return value
 
-    if socket.gethostname() == "tower":
-        default_config_name = "default_config.yaml"
-    else:
-        default_config_name = "juwels_config.yaml"
+    default_config_name = "default_config.yaml"
 
     parser = argparse.ArgumentParser(description="Train GPT Model")
     parser.add_argument(
@@ -388,6 +405,17 @@ if __name__ == "__main__":
     if not config_name.endswith(".yaml"):
         config_name += ".yaml"
 
-    config_file = os.path.join("config", args.config)
+    config_file = os.path.join("config", config_name)
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
 
-    main(config_file)
+    for arg in unknown_args:
+        if "=" in arg:
+            keys = arg.split("=")[0].split(".")
+            value = convert_string_value(arg.split("=")[1])
+            print(keys, value)
+            setInDict(config_dict, keys, value)
+        else:
+            raise UserWarning(f"argument unknown: {arg}")
+
+    main(config_dict)

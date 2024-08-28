@@ -2,23 +2,23 @@ experiment:
   experiments_base_dir: /p/scratch/laionize/franke5/experiments/
   project_name: gpr_project
   session_name: design_model
-  experiment_name: test_setup
+  experiment_name: test_setup_2
 
 
 train:
   seed: 1
   clip_value: 0.1
-  val_interval: 500
-  log_interval: 100
+  val_interval: 5000
+  log_interval: 500
   log_param_interval: 500
   save_interval: 10000
-  max_steps: 10000
+  max_steps: 100000
   max_epochs: null
 
 
 optim:
   optimizer: AdamW
-  lr: 0.002
+  lr: 0.001
   weight_decay: 0.1
   betas:
     - 0.9
@@ -27,7 +27,7 @@ optim:
   normalization_regularization: False
   bias_regularization: False
   scheduler:
-    num_warmup_steps: 400 #${eval:0.01 * ${trainer.max_steps}}
+    num_warmup_steps: 1000 #${eval:0.01 * ${trainer.max_steps}}
     num_training_steps: ${train.max_steps}
     decay_factor: 0.01
     schedule: "cosine" # "cosine" or "linear"
@@ -45,9 +45,10 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    model_dim: 128
-    max_len: 500
-    num_head: 2
+    max_var_pos: 5 # Maximum number of variables in the input, generator num_variables + 1
+    model_dim: 512
+    max_len: 400
+    num_head: 8
     n_layers: 6
     ff_factor: 4
     activation: relu
@@ -67,19 +68,24 @@ model:
 
 
 dataloader:
+    generator_type: PolynomialGenerator
     generator:
-        num_nodes: 2
-        num_edges: 2
-        max_terms: 3
-        num_realizations: 100
-        allowed_operations: ["+"]
-        real_numbers_realizations: False
-        keep_graph: True
+        num_variables: 4
+        max_terms: 4
+        num_realizations: 250
+        allowed_operations: ["+", "-", "*", "/", "cos", "log", "sin", "exp"]
+        real_const_decimal_places: 3
+        real_constants_min: -10
+        real_constants_max: 10
+        max_const_exponent: 3
+        use_math_constants: False
+        sample_interval: [-10, 10]
+        keep_graph: False
         keep_data: False
-        real_numbers_variables: False
-        num_variables: 2
-        max_powers: 1
+        max_powers: 3
         seed: 1
-    val_samples: 100
-    batch_size: 32
+    train_samples: 1000000
+    valid_samples: 10000
+    batch_size: 128
     num_workers: 8
+    data_dir: "./data"

@@ -3,7 +3,7 @@
 # setup.cpu.sh
 
 # Set the name for the virtual environment
-ENV_NAME="venv"
+ENV_NAME="pt22"
 
 # Create a virtual environment
 python3 -m venv $ENV_NAME
