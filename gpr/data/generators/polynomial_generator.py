@@ -34,7 +34,8 @@ class PolynomialGenerator(BaseGenerator):
         ------
         ValueError, If any operation in `allowed_operations` is unsupported.
         """
-        valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth", 'sqrt', 'abs', 'sign'}
+        valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","sinh","cosh","tanh","coth",'sqrt', 'abs', 'sign'}
+        # valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth", 'sqrt', 'abs', 'sign'}
         if not all(op in valid_operations for op in allowed_operations):
             raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
@@ -89,7 +90,9 @@ class PolynomialGenerator(BaseGenerator):
                     term = log(sp.Abs(term) + 1) if real_const_decimal_places == 0 else log(sp.Abs(term) + 1e-9)
                 elif operation == "exp":
                     term = sp.exp(term) # prevent exp from overflowing
-                elif operation in ["sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth"]:
+                # elif operation in ["asin","acos","atan","acot","asinh","acosh","atanh","acoth"]:
+                #     term = getattr(sp, operation)(sp.maximum(sp.minimum(term,1),-1))
+                elif operation in ["sin", "cos", "tan", "cot","sinh","cosh","tanh","coth"]:
                     term = getattr(sp, operation)(term)
                 elif operation == "sqrt":
                     term = sp.sqrt(sp.Abs(term))
@@ -97,6 +100,8 @@ class PolynomialGenerator(BaseGenerator):
                     term = sp.Abs(term)
                 elif operation == "sign":
                     term = sp.sign(term)
+                elif operation == "min":
+                    term = sp.min(term, 1)
 
 
                 terms.append(term)
@@ -171,20 +176,20 @@ if __name__ == '__main__':
         "num_variables": 3,
         "num_realizations": 1,  # We generate one realization per loop iteration
         "max_terms": 10,
-        "max_powers": 4,
+        "max_powers": 3,
         "use_constants": True,
-        "allowed_operations": ["+", "-", "cos", "sin", "log", "exp"],
+        "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
-        "max_const_exponent": 3,
+        "max_const_exponent": 2,
         "real_const_decimal_places": 4,
         "real_constants_min": -5,
         "real_constants_max": 5,
     }
 
     # Generate and print 5 different equations
-    for i in range(5):
+    for i in range(50):
         mantissa, exponent, expression = generator(**params)
         print(f"Equation {i+1}: {expression}")
         # latex_string = sp.latex(expression)
