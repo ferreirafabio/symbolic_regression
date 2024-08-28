@@ -269,7 +269,7 @@ if __name__ == "__main__":
         return value
 
 
-    default_config_name = "data_config.yaml"
+    default_config_name = "default_config.yaml"
 
     parser = argparse.ArgumentParser(description="Generate Dataset")
     parser.add_argument("-c", "--config", type=str, default=default_config_name, help="config file name")
