@@ -34,7 +34,7 @@ class PolynomialGenerator(BaseGenerator):
         ------
         ValueError, If any operation in `allowed_operations` is unsupported.
         """
-        valid_operations = {"+", "-", "*", "/", "log", "exp", "sin", "cos"}
+        valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth", 'sqrt', 'abs', 'sign'}
         if not all(op in valid_operations for op in allowed_operations):
             raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
@@ -84,12 +84,20 @@ class PolynomialGenerator(BaseGenerator):
                     has_x_term = True  # Set the flag to True as we have added a variable term
                 
                 operation = self.rng.choice(allowed_operations)
-                if operation == "log":
-                    term = sp.log(sp.Abs(term) + 1) if real_const_decimal_places == 0 else sp.log(sp.Abs(term) + 1e-9)
+                if operation in ["log", "ln"]:
+                    log = getattr(sp, operation)
+                    term = log(sp.Abs(term) + 1) if real_const_decimal_places == 0 else log(sp.Abs(term) + 1e-9)
                 elif operation == "exp":
-                    term = sp.exp(term % 3) # prevent exp from overflowing
-                elif operation in ["sin", "cos"]:
+                    term = sp.exp(term) # prevent exp from overflowing
+                elif operation in ["sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth"]:
                     term = getattr(sp, operation)(term)
+                elif operation == "sqrt":
+                    term = sp.sqrt(sp.Abs(term))
+                elif operation == "abs":
+                    term = sp.Abs(term)
+                elif operation == "sign":
+                    term = sp.sign(term)
+
 
                 terms.append(term)
 
