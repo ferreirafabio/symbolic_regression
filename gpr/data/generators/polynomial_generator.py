@@ -1,8 +1,13 @@
 import sympy as sp
-from sympy import Mul, Add
+from sympy import Add, Mul, Pow, Abs, Min, Max
 
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
+
+
+MAX_VAL = 1e10  # Maximum absolute value to prevent overflow
+MIN_VAL = 1e-10  # Minimum absolute value to prevent underflow
+MAX_EXP = 10   # Reduced maximum exponent
 
 
 class PolynomialGenerator(BaseGenerator):
@@ -34,8 +39,7 @@ class PolynomialGenerator(BaseGenerator):
         ------
         ValueError, If any operation in `allowed_operations` is unsupported.
         """
-        valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","sinh","cosh","tanh","coth",'sqrt', 'abs', 'sign'}
-        # valid_operations = {"+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth", 'sqrt', 'abs', 'sign'}
+        valid_operations = {"+", "-", "*", "/", '^', 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","asin","acos","atan","acot","sinh","cosh","tanh","coth","asinh","acosh","atanh","acoth", 'sqrt', 'abs', 'sign'}
         if not all(op in valid_operations for op in allowed_operations):
             raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
@@ -85,43 +89,73 @@ class PolynomialGenerator(BaseGenerator):
                     has_x_term = True  # Set the flag to True as we have added a variable term
                 
                 operation = self.rng.choice(allowed_operations)
+
+                def safe_log(x, operation):
+                    log_func = getattr(sp, operation)
+                    return log_func(Abs(x) + MIN_VAL)
+
+                def safe_exp(x):
+                    return sp.exp(sp.Piecewise(
+                        (MAX_EXP, x > MAX_EXP),
+                        (x, True), evaluate=True
+                    ))
+
+                def safe_inverse_trig(x, operation):
+                    safe_x = sp.Piecewise(
+                        (-1, x < -1),
+                        (1, x > 1),
+                        (x, True), evaluate=True
+                    )
+                    return getattr(sp, operation)(safe_x)
+
+                def safe_sqrt(x):
+                    return sp.sqrt(Abs(x))
+
+                def safe_pow(base, exp):
+                    safe_exp = sp.Piecewise(
+                        (MAX_EXP, x > MAX_EXP),
+                        (x, True), evaluate=True
+                    )
+                    return Pow(base, safe_exp, evaluate=True)
+
+                # Main logic
+                operation = self.rng.choice(allowed_operations)
+
                 if operation in ["log", "ln"]:
-                    log = getattr(sp, operation)
-                    term = log(sp.Abs(term) + 1) if real_const_decimal_places == 0 else log(sp.Abs(term) + 1e-9)
+                    term = safe_log(term, operation)
                 elif operation == "exp":
-                    term = sp.exp(term) # prevent exp from overflowing
-                # elif operation in ["asin","acos","atan","acot","asinh","acosh","atanh","acoth"]:
-                #     term = getattr(sp, operation)(sp.maximum(sp.minimum(term,1),-1))
-                elif operation in ["sin", "cos", "tan", "cot","sinh","cosh","tanh","coth"]:
-                    term = getattr(sp, operation)(term)
+                    term = safe_exp(term)
+                elif operation in ["asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth"]:
+                    term = safe_inverse_trig(term, operation)
+                elif operation in ["sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth"]:
+                    term = getattr(sp, operation)(safe_x)
                 elif operation == "sqrt":
-                    term = sp.sqrt(sp.Abs(term))
+                    term = safe_sqrt(term)
                 elif operation == "abs":
-                    term = sp.Abs(term)
+                    term = Abs(term)
                 elif operation == "sign":
                     term = sp.sign(term)
-                elif operation == "min":
-                    term = sp.min(term, 1)
-
 
                 terms.append(term)
 
-            # Ensure at least one term includes a variable
-            if not has_x_term:
-                continue
+                # Ensure at least one term includes a variable
+                if not has_x_term:
+                    continue
 
-            polynomial = terms[0]
+                polynomial = terms[0]
 
-            for term in terms[1:]:
-                operation = self.rng.choice(allowed_operations)
-                if operation == "+":
-                    polynomial = Add(polynomial, term, evaluate=True)
-                elif operation == "-":
-                    polynomial = Add(polynomial, -term, evaluate=True)
-                elif operation == "*":
-                    polynomial = Mul(polynomial, term, evaluate=True)
-                elif operation == "/":
-                    polynomial = Mul(polynomial, 1/term, evaluate=True)
+                for term in terms[1:]:
+                    operation = self.rng.choice(allowed_operations)
+                    if operation == "+":
+                        polynomial = Add(polynomial, term, evaluate=True)
+                    elif operation == "-":
+                        polynomial = Add(polynomial, -term, evaluate=True)
+                    elif operation == "*":
+                        polynomial = Mul(polynomial, term, evaluate=True)
+                    elif operation == "/":
+                        polynomial = Mul(polynomial, 1/term, evaluate=True)
+                    elif operation == "^":
+                        polynomial = safe_pow(polynomial, term)
 
             polynomial = sp.simplify(polynomial)  # Simplify to combine like terms
 
@@ -175,10 +209,11 @@ if __name__ == '__main__':
     params = {
         "num_variables": 3,
         "num_realizations": 1,  # We generate one realization per loop iteration
-        "max_terms": 10,
+        "max_terms": 6,
         "max_powers": 3,
         "use_constants": True,
-        "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
+        "allowed_operations": ["+", "-", "*", "/", 'exp', ],
+        # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
