@@ -10,6 +10,7 @@ import sympy as sp
 import pandas as pd
 import numpy as np
 import torch
+import re
 import yaml
 import random
 import logging
@@ -198,6 +199,10 @@ class SymPySimpleDataModule(object):
         # Quick check for balanced braces
         if latex_equation.count('{') != latex_equation.count('}'):
             raise ValueError("Unbalanced braces in LaTeX equation")
+
+        # Add explicit multiplication symbol * before parentheses to avoid 
+        # sympy misinterpreting x_{2}(..) as a function call
+        latex_equation = re.sub(r'(\w+)(\()', r'\1*\2', latex_equation)
 
         try:
             parsed_eq = parse_latex(latex_equation)
