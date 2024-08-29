@@ -18,7 +18,7 @@ class EquationDataset(torch.utils.data.Dataset):
             mantissa, exponent, expression = self.data_source[idx % len(self.data_source)]
 
         latex_token_indices = tokenize_latex_to_char(sp.latex(expression))
-        token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
+        token_tensor = torch.tensor(latex_token_indices, dtype=torch.uint8)
 
         return mantissa, exponent, token_tensor, expression
 

@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
 
+from gpr.data.utils import format_floats_recursive
 from gpr.data.datasets import EquationDataset
 from gpr.data.utils import all_tokens, token_to_index
 from gpr.utils.configuration import Config
@@ -76,13 +77,7 @@ class SymPySimpleDataModule(object):
         self.config = global_config.dataloader
         self.worker_seeds = np.zeros(self.config.num_workers, dtype=int)
         self.seed = self.config.generator.seed # base seed for training set
-        self.val_seed = self.seed + 1000  # base seed for validation set
-
-        if logger is None:
-            self.logger = logging.getLogger('logger')
-            self.logger.setLevel(logging.INFO)
-        else:
-            self.logger = logger
+        # self.val_seed = self.seed + 1000  # base seed for validation set
 
         self.ignore_index = -100
         self.pad_index = token_to_index['<PAD>']
@@ -90,6 +85,49 @@ class SymPySimpleDataModule(object):
         self.eoe_index = token_to_index['<EOE>']
         self.token_to_index = token_to_index
         self.all_tokens = all_tokens
+
+        self.real_const_decimal_places = self.config.generator.real_const_decimal_places
+
+        if logger is None:
+            self.logger = logging.getLogger('logger')
+            self.logger.setLevel(logging.INFO)
+        else:
+            self.logger = logger
+
+        # Get the directory from the existing log file
+        log_file_name = self._get_log_file_name()
+        log_directory = pathlib.Path(log_file_name).parent
+
+        # Set up the equation logger in the same directory
+        equation_log_file = log_directory / 'equation_log.txt'
+        self.equation_logger = self._setup_equation_logger(equation_log_file)
+
+    def _get_log_file_name(self):
+        # Loop through all handlers and check if they are FileHandlers
+        for handler in self.logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                # Return the file name from the handler
+                return handler.baseFilename
+        return None
+
+    def _setup_equation_logger(self, log_file_path):
+        # Create a separate logger for equations
+        equation_logger = logging.getLogger('equation_logger')
+        equation_logger.setLevel(logging.INFO)
+
+        # Create file handler for equation logging
+        fh = logging.FileHandler(log_file_path)
+        fh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        
+        # Add the handler to the equation logger
+        equation_logger.addHandler(fh)
+        # Prevent log messages from propagating to the root/general logger
+        equation_logger.propagate = False
+
+        return equation_logger
+
 
     def get_vocab(self):
         return self.all_tokens
@@ -137,15 +175,21 @@ class SymPySimpleDataModule(object):
         """Convert a LaTeX equation string to a SymPy function."""
         try:
             parsed_eq = self.parse_latex_equation(latex_equation)
+            self.equation_logger.info(f"Parsed equation: {parsed_eq}")
 
             # clean variable names from underscored variables
             cleaned_eq, var_map = clean_variable_names(parsed_eq)
+            self.equation_logger.info(f"Cleaned equation: {cleaned_eq}")
+
+            # Round the coefficients in the cleaned equation to the desired precision
+            cleaned_eq = format_floats_recursive(cleaned_eq, self.real_const_decimal_places)
+
             variables = [var_map.get(var, var) for var in cleaned_eq.free_symbols if str(var) != 'y']
 
             return cleaned_eq, variables
 
         except Exception as e:
-            self.logger.debug(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
+            self.equation_logger.info(f"Failed to parse LaTeX equation: {latex_equation}. Error: {e}")
             return None, None
 
     def parse_latex_equation(self, latex_equation):
@@ -180,39 +224,40 @@ class SymPySimpleDataModule(object):
         for pred_seq, true_seq in zip(predicted_seqs, true_seqs):
 
             if pred_seq is None:
-                self.logger.debug(f"End of equation token not found in predicted sequence, skipping MSE computation for this pair.")
+                self.equation_logger.info(f"End of equation token not found in predicted sequence, skipping MSE computation for this pair (true: {true_seq}, pred.: {pred_seq}).")
                 continue
+
+            self.equation_logger.info(f"Predicted sequence: {pred_seq}")
+            self.equation_logger.info(f"True sequence: {true_seq}")
 
             pred_eq, pred_vars = self.latex_equation_to_function(pred_seq)
             true_eq, true_vars = self.latex_equation_to_function(true_seq)
 
             # Check if equations are valid
             if pred_eq is None or true_eq is None:
-                self.logger.debug(f"Invalid equations, skipping MSE computation for this pair.")
+                self.equation_logger.info(f"Invalid equations, skipping MSE computation for this pair (true: {true_seq}, pred.: {pred_seq}).")
                 continue
 
-            self.logger.debug(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {pred_seq})")
-            self.logger.debug(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
-
-            # Generate a union of all variables
-            all_vars = list(set(pred_vars) | set(true_vars))
+            self.equation_logger.info(f"pred_vars: {pred_vars} from pred_eq: {pred_eq} (latex string: {pred_seq})")
+            self.equation_logger.info(f"true_vars: {true_vars} from true_eq: {true_eq} (latex string: {true_seq})")
 
             # Generate values for variables
-            var_values = {var: np.random.uniform(-10, 10, 10) for var in all_vars}
+            var_values = {var: np.round(np.random.uniform(-10, 10, 10), self.real_const_decimal_places) for var in set(pred_vars) | set(true_vars)}
 
             try:
                 pred_input_values = [var_values[var] for var in pred_vars]
                 true_input_values = [var_values[var] for var in true_vars]
 
-                # Log variable values
-                # for var in pred_vars:
-                #     self.logger.debug(f"Values for {var} in pred_eq: {var_values[var]}")
-                # for var in true_vars:
-                #     self.logger.debug(f"Values for {var} in true_eq: {var_values[var]}")
+                # Create custom lambdify functions with controlled precision
+                def rounded_lambdify(expr, variables):
+                    lambda_func = sp.lambdify(variables, expr, modules=['numpy'])
+                    def wrapper(*args):
+                        result = lambda_func(*args)
+                        return np.round(result, self.real_const_decimal_places)
+                    return wrapper
 
-                # Create lambdified functions and evaluate them
-                pred_func = sp.lambdify([var for var in pred_vars], pred_eq.rhs, modules=['numpy'])
-                true_func = sp.lambdify([var for var in true_vars], true_eq.rhs, modules=['numpy'])
+                pred_func = rounded_lambdify([var for var in pred_vars], pred_eq.rhs)
+                true_func = rounded_lambdify([var for var in true_vars], true_eq.rhs)
 
                 pred_values = pred_func(*pred_input_values)
                 true_values = true_func(*true_input_values)
@@ -220,15 +265,19 @@ class SymPySimpleDataModule(object):
                 mse = np.mean((pred_values - true_values) ** 2)
                 norm_true_values = np.linalg.norm(true_values)
                 normalized_mse = mse / (norm_true_values + 1e-8)
-                self.logger.debug(f"pred_values: {pred_values}, true_values: {true_values}, normalized MSE: {normalized_mse}")
+                self.equation_logger.info(f"Computed MSE successfully for: pred_values: {pred_values} and true_values: {true_values} with normalized MSE: {normalized_mse}")
 
                 total_mse += normalized_mse
                 valid_eq_count += 1
 
+            except SyntaxError as se:
+                self.equation_logger.info(f"SyntaxError: {se} for true equation {true_eq} and pred. equation {pred_eq}")
+
             except Exception as e:
-                self.logger.debug(f"Failed to evaluate equations: {pred_seq} and {true_seq}")
-                self.logger.debug(f"Error: {str(e)}")
+                self.equation_logger.info(f"Failed to evaluate equations: {pred_seq} and {true_seq}")
+                self.equation_logger.info(f"Error: {str(e)}")
                 continue
+
 
         if valid_eq_count == 0:
             return 0.0, 0  # No valid equations, return 0 MSE and 0 valid equations
@@ -254,14 +303,16 @@ class SymPySimpleDataModule(object):
             for key in ['mantissa', 'exponent', 'token_tensor']:
                 array_data = np.array(sample[key].to_pylist()[0])
                 tensor_data = torch.from_numpy(array_data)
-                # Ensure mantissa and exponent are float32
-                if key in ['mantissa', 'exponent']:
+                if key == 'mantissa':
                     tensor_data = tensor_data[:num_realizations, :]
-                    tensor_data = tensor_data.float()
+                    tensor_data = tensor_data.float().round(decimals=self.real_const_decimal_places)
+                elif key == 'exponent':
+                    tensor_data = tensor_data[:num_realizations, :]
+                    tensor_data = tensor_data.to(torch.int8)
 
                 batch[key].append(tensor_data.t())  # Transpose for PyTorch
 
-            batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
+            # batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
 
         mantissa_stack = pad_sequence(batch['mantissa'],
                                       batch_first=True,
@@ -270,17 +321,17 @@ class SymPySimpleDataModule(object):
                                       batch_first=True,
                                       padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
 
-        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.long), tokens]) for tokens in batch['token_tensor']]
+        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.uint8), tokens]) for tokens in batch['token_tensor']]
         input_seq_stack = pad_sequence(input_seq, batch_first=True, padding_value=self.pad_index)
 
-        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.long)]) for tokens in batch['token_tensor']]
+        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.uint8)]) for tokens in batch['token_tensor']]
         target_seq_stack = pad_sequence(target_seq, batch_first=True, padding_value=self.ignore_index)
 
         return {"mantissa": mantissa_stack,
                 "exponent": exponent_stack,
                 "in_equation": input_seq_stack,
                 "trg_equation": target_seq_stack,
-                "latex_equation": batch['latex_expression'],
+                # "latex_equation": batch['latex_expression'],
                 'trg_len': torch.tensor([seq.shape[0] + 1 for seq in batch['token_tensor']])}
 
 
@@ -308,7 +359,10 @@ class SymPySimpleDataModule(object):
         self.logger.info("MMAP Read ALL")
         dataset = pa.ipc.open_file(mmap)
 
+        self.logger.info(f"DataLoader for {set_name} successfully loaded from {file_dir}.")
+
         train_set_size = dataset.num_record_batches
+        self.logger.info(f"Number of {set_name} samples: {train_set_size}")
 
         indices = list(range(train_set_size))
         indices = np.random.permutation(indices)
@@ -324,12 +378,24 @@ class SymPySimpleDataModule(object):
             pin_memory=True,
             drop_last=True if set_name == 'train' else False,
         )
-        
-        self.logger.info(f"DataLoader for {set_name} successfully loaded from {file_dir}.")
+        # if self.logger.isEnabledFor(logging.DEBUG):
+        self.logger.info(f"Inspecting sample batch for {set_name} dataset")
+
+        # check content in dataloader
+        sample_batch = next(iter(data_loader))
+
+        self.logger.info(f"Let's see what's in the data. Sample batch keys: {sample_batch.keys()}")
+
+        # Log the first few values of each field in the sample batch
+        for key, value in sample_batch.items():
+            if isinstance(value, torch.Tensor):
+                self.logger.info(f"Sample values for {key}: Shape {value.shape}, First few values: {value[:5]}")
+            elif isinstance(value, list):
+                self.logger.info(f"Sample values for {key}: First few values: {value[:5]}")
+            else:
+                self.logger.info(f"Sample values for {key}: {value}")
 
         return data_loader
-
-
 
 
     def get_train_loader(self):

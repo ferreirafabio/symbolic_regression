@@ -10,6 +10,7 @@
 #     return [token_to_index[ch] for ch in latex_string if ch in token_to_index]
 
 import re
+import sympy as sp
 
 # Define LaTeX commands
 latex_commands = [
@@ -90,6 +91,18 @@ def tokenize_latex_to_char(latex_string):
                 # Skip unknown characters
                 i += 1
     return tokens
+
+
+def format_floats_recursive(expr, decimal_places):
+    """
+    Recursively ensures that all float values in the expression have exactly `decimal_places` digits.
+    """
+    if isinstance(expr, sp.Float):
+        return sp.Float(round(expr, decimal_places), decimal_places)
+    elif expr.is_Atom:
+        return expr
+    else:
+        return expr.func(*[format_floats_recursive(arg, decimal_places) for arg in expr.args])
 
 
 if __name__ == '__main__':

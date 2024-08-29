@@ -3,6 +3,7 @@ from sympy import Add, Mul, Pow, Abs, Min, Max
 
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
+from gpr.data.utils import format_floats_recursive
 
 
 MAX_VAL = 1e10  # Maximum absolute value to prevent overflow
@@ -157,6 +158,8 @@ class PolynomialGenerator(BaseGenerator):
                     elif operation == "^":
                         polynomial = safe_pow(polynomial, term)
 
+            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
+
             polynomial = sp.simplify(polynomial)  # Simplify to combine like terms
 
             # Ensure the polynomial includes at least one variable term
@@ -176,21 +179,11 @@ class PolynomialGenerator(BaseGenerator):
                 break
 
             # Post-process the polynomial to enforce decimal places recursively
-            polynomial = self._format_floats_recursive(polynomial, real_const_decimal_places)
+            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
 
 
         return polynomial
     
-    def _format_floats_recursive(self, expr, decimal_places):
-        """
-        Recursively ensures that all float values in the expression have exactly `decimal_places` digits.
-        """
-        if isinstance(expr, sp.Float):
-            return sp.Float(expr, decimal_places)
-        elif expr.is_Atom:
-            return expr
-        else:
-            return expr.func(*[self._format_floats_recursive(arg, decimal_places) for arg in expr.args])
 
 
 if __name__ == '__main__':
@@ -212,13 +205,13 @@ if __name__ == '__main__':
         "max_terms": 6,
         "max_powers": 3,
         "use_constants": True,
-        "allowed_operations": ["+", "-", "*", "/", 'exp', ],
+        "allowed_operations": ["+", "-", "*", "/"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
         "max_const_exponent": 2,
-        "real_const_decimal_places": 4,
+        "real_const_decimal_places": 2,
         "real_constants_min": -5,
         "real_constants_max": 5,
     }

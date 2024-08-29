@@ -143,10 +143,12 @@ class CreateDataset(object):
 
     def _create_sample(self):
         mantissa, exponent, expression = self.generator(**self.config.generator)
+        mantissa = torch.round(mantissa * 10**self.config.generator.real_const_decimal_places) / 10**self.config.generator.real_const_decimal_places
+        mantissa, exponent = mantissa.to(torch.float16), exponent.to(torch.int8)
         latex_expression = sp.latex(expression)
         latex_token_indices = tokenize_latex_to_char(latex_expression)
-        token_tensor = torch.tensor(latex_token_indices, dtype=torch.long)
-        sample = [mantissa.numpy(), exponent.numpy(), token_tensor.numpy(), latex_expression]
+        token_tensor = torch.tensor(latex_token_indices, dtype=torch.uint8)
+        sample = [mantissa.numpy(), exponent.numpy(), token_tensor.numpy()]
         return sample
 
 
@@ -173,13 +175,12 @@ class CreateDataset(object):
                                 if end_counter == workers:
                                     break
                             else:
-                                mantissa_batch, exponent_batch, token_tensor_batch, latex_expression_batch = sample
+                                mantissa_batch, exponent_batch, token_tensor_batch = sample
 
                                 batch = pa.RecordBatch.from_arrays([
                                     pa.array([[list(row) for row in mantissa_batch]]),
                                     pa.array([[list(row) for row in exponent_batch]]),
                                     pa.array([token_tensor_batch]),
-                                    pa.array([latex_expression_batch])
                                 ], schema=schema)
                                 writer.write_batch(batch)
                                 sample_counter += 1
@@ -193,10 +194,9 @@ class CreateDataset(object):
 
         if not os.path.exists(file_dir) or force_creation:
             schema = pa.schema([
-                ('mantissa', pa.list_(pa.list_(pa.float32()))),
-                ('exponent', pa.list_(pa.list_(pa.float32()))),
-                ('token_tensor', pa.list_(pa.int32())),
-                ('latex_expression', pa.string())
+                ('mantissa', pa.list_(pa.list_(pa.float16()))),
+                ('exponent', pa.list_(pa.list_(pa.int8()))),
+                ('token_tensor', pa.list_(pa.uint8())),
             ])
 
             mp_manager_list = []
