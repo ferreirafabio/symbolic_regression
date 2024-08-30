@@ -114,8 +114,8 @@ class PolynomialGenerator(BaseGenerator):
 
                 def safe_pow(base, exp):
                     safe_exp = sp.Piecewise(
-                        (MAX_EXP, x > MAX_EXP),
-                        (x, True), evaluate=True
+                        (MAX_EXP, exp > MAX_EXP),
+                        (exp, True), evaluate=True
                     )
                     return Pow(base, safe_exp, evaluate=True)
 
@@ -129,6 +129,11 @@ class PolynomialGenerator(BaseGenerator):
                 elif operation in ["asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth"]:
                     term = safe_inverse_trig(term, operation)
                 elif operation in ["sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth"]:
+                    safe_x = sp.Piecewise(
+                        (-1, term < -1),
+                        (1, term > 1),
+                        (term, True), evaluate=True
+                    )
                     term = getattr(sp, operation)(safe_x)
                 elif operation == "sqrt":
                     term = safe_sqrt(term)
@@ -205,7 +210,7 @@ if __name__ == '__main__':
         "max_terms": 6,
         "max_powers": 3,
         "use_constants": True,
-        "allowed_operations": ["+", "-", "*", "/"],
+        "allowed_operations": ["+", "-", "*", "/", "exp"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         "keep_graph": False,
         "keep_data": False,
