@@ -123,18 +123,74 @@ optim.lr=0.0001"
 
 ###
 
-sbatch --nodes=1 --account=projectnucleus --partition=booster --time=20:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
-experiment.experiment_name=setup_rel100_lr3e-4
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=15:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_rel100_s20k_lr3e-4_wd01
 dataloader.generator.num_realizations=100
 dataloader.batch_size=64
 model.activation=silu
-train.max_steps=10000
+train.max_steps=20000
+optim.weight_decay=0.01
 optim.lr=0.00031"
 
-sbatch --nodes=1 --account=projectnucleus --partition=booster --time=20:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
-experiment.experiment_name=setup_rel100_lr1e-4
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=15:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_rel100_s20k_lr3e-4
 dataloader.generator.num_realizations=100
 dataloader.batch_size=64
 model.activation=silu
-train.max_steps=10000
-optim.lr=0.0001"
+train.max_steps=20000
+optim.lr=0.00031"
+
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=15:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_rel100_s40k_lr3e-4
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=40000
+optim.lr=0.00031"
+
+
+
+##########################
+
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=10:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_default_rel100_s20k_lr3e-4_wd01_bs64
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=20000
+optim.weight_decay=0.01
+optim.lr=0.00031"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=16:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_default_rel100_s20k_lr3e-4_wd01_bs64
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=40000
+optim.weight_decay=0.01
+optim.lr=0.00031"
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=10:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_default_rel100_s20k_lr3e-4_wd01_bs128
+dataloader.generator.num_realizations=100
+dataloader.batch_size=128
+model.activation=silu
+train.max_steps=20000
+optim.weight_decay=0.01
+optim.lr=0.00031"
+
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=10:00:00 slurm_launch_juwels.sh "experiment.session_name=first_hpo_3
+experiment.experiment_name=setup_default_rel100_s20k_lr3e-4_cpr_bs64
+dataloader.generator.num_realizations=100
+dataloader.batch_size=64
+model.activation=silu
+train.max_steps=20000
+optim.optimizer=AdamCPR
+optim.cpr_config.kappa_init_method=inflection_point
+optim.cpr_config.kappa_init_param=1000
+optim.lr=0.00031"
+
+

@@ -310,7 +310,8 @@ class SymPySimpleDataModule(object):
                 tensor_data = torch.from_numpy(array_data)
                 if key == 'mantissa':
                     tensor_data = tensor_data[:num_realizations, :]
-                    tensor_data = tensor_data.float().round(decimals=self.real_const_decimal_places)
+                    tensor_data = tensor_data.float().round(decimals=self.real_const_decimal_places).to(torch.float16)
+
                 elif key == 'exponent':
                     tensor_data = tensor_data[:num_realizations, :]
                     tensor_data = tensor_data.to(torch.int8)

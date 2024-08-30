@@ -113,7 +113,7 @@ def main(config_dict):
 
 
     # optimizer, lr_scheduler = configure_optimizer(cfg.optim, model, logger)
-    loss_func = FlashCrossEntropyLoss(ignore_index=sympy_data.ignore_index, reduction='mean') # TODO get pad index from data module
+    loss_func = FlashCrossEntropyLoss(ignore_index=sympy_data.ignore_index, reduction='mean')
 
     model = accelerator.prepare(model)
 

@@ -105,7 +105,7 @@ class CreateDataset(object):
             self.generator = PolynomialGenerator(rng=self.rng)
 
         num_cpus = mp.cpu_count()
-        workers = (num_cpus // 8) & ~1
+        workers = (num_cpus // 2) & ~1
 
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
@@ -209,9 +209,13 @@ class CreateDataset(object):
             mp_manager.start()
             mp_manager_list.append(mp_manager)
 
+            samples_per_worker = num_samples // workers
+            remaining_samples = num_samples % workers
+
             for worker_idx in range(workers):
-                self.logger.info(f"Starting create_sample process {worker_idx} for {dataset_type} dataset")
-                mp_manager = mp.Process(target=self._samples2queue, args=(mp_queue, num_samples // workers))
+                worker_samples = samples_per_worker + (1 if worker_idx < remaining_samples else 0)
+                self.logger.info(f"Starting create_sample process {worker_idx} for {dataset_type} dataset with {worker_samples} samples")
+                mp_manager = mp.Process(target=self._samples2queue, args=(mp_queue, worker_samples))
                 mp_manager.daemon = True
                 mp_manager.start()
                 mp_manager_list.append(mp_manager)
