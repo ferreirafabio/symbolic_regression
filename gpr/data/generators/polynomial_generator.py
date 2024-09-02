@@ -1,17 +1,17 @@
 import sympy as sp
-from sympy import Add, Mul, Pow, Abs, Min, Max
+import random
 
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
 from gpr.data.utils import format_floats_recursive
 
 
-MAX_VAL = 1e10  # Maximum absolute value to prevent overflow
-MIN_VAL = 1e-10  # Minimum absolute value to prevent underflow
-MAX_EXP = 10   # Reduced maximum exponent
-
-
 class PolynomialGenerator(BaseGenerator):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filtered_operator_families = None
+        
 
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, use_math_constants: bool=False, **kwargs) -> sp.Eq:
@@ -44,6 +44,9 @@ class PolynomialGenerator(BaseGenerator):
         if not all(op in valid_operations for op in allowed_operations):
             raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
+        if self.filtered_operator_families is None:
+            self.filtered_operator_families = self.filter_families(allowed_operations)
+
         max_powers = kwargs.get('max_powers', 2)
         allow_negative_coefficients = "-" in allowed_operations
         
@@ -55,6 +58,8 @@ class PolynomialGenerator(BaseGenerator):
         constants = [sp.pi, sp.E] if use_math_constants else []
 
         polynomial = sp.Integer(0)  # Initialize as zero to enter the loop
+
+        epsilon = 1e-10 if real_const_decimal_places > 0 else 1  # Small positive value to avoid log(0) and ln(0)
 
         while True:
             num_terms = self.rng.integers(1, max_terms + 1)
@@ -88,57 +93,22 @@ class PolynomialGenerator(BaseGenerator):
                         term *= var ** exponent
 
                     has_x_term = True  # Set the flag to True as we have added a variable term
-                
-                operation = self.rng.choice(allowed_operations)
-
-                def safe_log(x, operation):
-                    log_func = getattr(sp, operation)
-                    return log_func(Abs(x) + MIN_VAL)
-
-                def safe_exp(x):
-                    return sp.exp(sp.Piecewise(
-                        (MAX_EXP, x > MAX_EXP),
-                        (x, True), evaluate=True
-                    ))
-
-                def safe_inverse_trig(x, operation):
-                    safe_x = sp.Piecewise(
-                        (-1, x < -1),
-                        (1, x > 1),
-                        (x, True), evaluate=True
-                    )
-                    return getattr(sp, operation)(safe_x)
-
-                def safe_sqrt(x):
-                    return sp.sqrt(Abs(x))
-
-                def safe_pow(base, exp):
-                    safe_exp = sp.Piecewise(
-                        (MAX_EXP, exp > MAX_EXP),
-                        (exp, True), evaluate=True
-                    )
-                    return Pow(base, safe_exp, evaluate=True)
 
                 # Main logic
-                operation = self.rng.choice(allowed_operations)
+                operation = self.sample_operation(self.filtered_operator_families)
 
-                if operation in ["log", "ln"]:
-                    term = safe_log(term, operation)
-                elif operation == "exp":
-                    term = safe_exp(term)
-                elif operation in ["asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth"]:
-                    term = safe_inverse_trig(term, operation)
-                elif operation in ["sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth"]:
-                    safe_x = sp.Piecewise(
-                        (-1, term < -1),
-                        (1, term > 1),
-                        (term, True), evaluate=True
-                    )
-                    term = getattr(sp, operation)(safe_x)
+                if operation == "log":
+                    term = sp.log(sp.Abs(term + epsilon), 10)
+                elif operation == "ln":
+                    term = sp.ln(sp.Abs(term + epsilon))
+                elif operation == "exp":                    
+                    term = sp.exp(term)
+                elif operation in ["asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth"]:
+                    term = getattr(sp, operation)(term)
                 elif operation == "sqrt":
-                    term = safe_sqrt(term)
+                    term = sp.sqrt(sp.Abs(term))
                 elif operation == "abs":
-                    term = Abs(term)
+                    term = sp.Abs(term)
                 elif operation == "sign":
                     term = sp.sign(term)
 
@@ -151,17 +121,18 @@ class PolynomialGenerator(BaseGenerator):
                 polynomial = terms[0]
 
                 for term in terms[1:]:
-                    operation = self.rng.choice(allowed_operations)
+                    # operation = self.rng.choice(allowed_operations)
+                    operation = self.sample_operation(self.filtered_operator_families)
                     if operation == "+":
-                        polynomial = Add(polynomial, term, evaluate=True)
+                        polynomial = sp.Add(polynomial, term, evaluate=True)
                     elif operation == "-":
-                        polynomial = Add(polynomial, -term, evaluate=True)
+                        polynomial = sp.Add(polynomial, -term, evaluate=True)
                     elif operation == "*":
-                        polynomial = Mul(polynomial, term, evaluate=True)
+                        polynomial = sp.Mul(polynomial, term, evaluate=True)
                     elif operation == "/":
-                        polynomial = Mul(polynomial, 1/term, evaluate=True)
+                        polynomial = sp.Mul(polynomial, 1/term, evaluate=True)
                     elif operation == "^":
-                        polynomial = safe_pow(polynomial, term)
+                        polynomial = sp.Pow(polynomial, term)
 
             polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
 
@@ -201,16 +172,16 @@ if __name__ == '__main__':
         """
         return ''.join(index_to_token[idx] for idx in indices)
 
-    generator = PolynomialGenerator()
+    generator = PolynomialGenerator(verbose=True)
     
     # Define the parameters for the equation generation
     params = {
         "num_variables": 3,
-        "num_realizations": 1,  # We generate one realization per loop iteration
+        "num_realizations": 10000,  # We generate one realization per loop iteration
         "max_terms": 6,
-        "max_powers": 3,
+        "max_powers": 2,
         "use_constants": True,
-        "allowed_operations": ["+", "-", "*", "/", "exp"],
+        "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         "keep_graph": False,
         "keep_data": False,
@@ -219,12 +190,13 @@ if __name__ == '__main__':
         "real_const_decimal_places": 2,
         "real_constants_min": -5,
         "real_constants_max": 5,
+        "nan_inf_threshold": 0.5,
     }
 
     # Generate and print 5 different equations
     for i in range(50):
-        mantissa, exponent, expression = generator(**params)
-        print(f"Equation {i+1}: {expression}")
+        mantissa, exponent, expression, valid = generator(**params)
+        print(f"Equation {i+1}: {expression} expression contains NaNs/Infs: {not valid}")
         # latex_string = sp.latex(expression)
         # print(f"Equation {i+1}: {latex_string}")
 
