@@ -17,6 +17,7 @@ import accelerate
 
 # from gpr.data.generators import PolynomialGenerator
 from gpr.data.loaders import SymPySimpleDataModule
+from gpr.data.equation_master import EquationMaster
 from gpr.model.gpr_transformer import GPRTransformer
 from gpr.utils.configuration import Config
 from gpr.utils.folder_manager import get_experiment_folder
@@ -81,9 +82,10 @@ def main_eval(config_dict, exp_folder, checkpoint_file):
     fh.setLevel(logging.INFO)
     logger.addHandler(fh)
 
-    sympy_data = SymPySimpleDataModule(cfg,
-                                       logger=logger,
-                                       )
+    sympy_data = SymPySimpleDataModule(cfg,logger=logger,)
+
+    e_master = EquationMaster(cfg,logger=logger,)
+
     accelerator.wait_for_everyone()
 
     logger.info(bold(f"############### SETUP DATA on rank {rank}"))
@@ -149,7 +151,7 @@ def main_eval(config_dict, exp_folder, checkpoint_file):
         true_strs = sympy_data.indices_to_string(val_batch['trg_equation'])
         pred_strs = sympy_data.indices_to_string(predicted_tokens)
 
-        batch_sum_mse, batch_sum_valid_eq = sympy_data.compute_mse(pred_strs, true_strs)
+        batch_sum_mse, batch_sum_valid_eq = e_master.compute_mse(pred_strs, true_strs)
         tefo_stats['mse'] += batch_sum_mse
         tefo_stats['valid'] += batch_sum_valid_eq
         # equation_mse += batch_sum_mse
@@ -189,7 +191,7 @@ def main_eval(config_dict, exp_folder, checkpoint_file):
     max_length = cfg.model.max_len
     eoe_index = sympy_data.eoe_index
 
-    auto_stats = defaultdict(torch.tensor(0, device=device, dtype=torch.float))
+    auto_stats = defaultdict(lambda: torch.tensor(0, device=device, dtype=torch.float))
 
     for val_batch in valid_loader:
         val_batch = sympy_data.batch_to_device(val_batch, device)
@@ -224,13 +226,31 @@ def main_eval(config_dict, exp_folder, checkpoint_file):
                 else:
                     min_idx = min(pred_eq.shape[0], truq_eq.shape[0])
                     max_idx = max(pred_eq.shape[0], truq_eq.shape[0])
-                    accuracy = torch.sum(pred_eq[min_idx] == truq_eq[min_idx])/ max_idx
+                    accuracy = torch.sum(pred_eq[:min_idx] == truq_eq[:min_idx])/ max_idx
                     auto_stats['accuracy'] += accuracy
                     auto_stats['solved'] += 0
                 auto_stats['has_eoe'] += 1
 
             auto_stats['samples'] += 1
 
+    gathered_auto_stats = {k: accelerator.gather(v) for k, v in auto_stats.items()}
+
+    if is_rank_zero:
+        sum_auto_stats = {k: torch.sum(v) for k, v in gathered_auto_stats.items()}
+
+        accuracy = sum_auto_stats['accuracy'] / sum_auto_stats['samples']
+        solved = sum_auto_stats['solved'] / sum_auto_stats['samples']
+        # mean_mse = sum_auto_stats['mse'] / sum_auto_stats['samples']
+        # valid = sum_auto_stats['valid'] / sum_auto_stats['samples']
+
+        logger.info(
+            f"Autoregressive Validation - "
+            f" - Mean Acc: {accuracy.item():.4f}"
+            f" - Mean Solved: {solved.item():.4f}"
+            # f" - Mean MSE: {mean_mse.item():.4f}"
+            # f" - Mean Valid: {valid.item():.4f}"
+            f" - Samples: {int(sum_auto_stats['samples'].item())}"
+        )
 
     logger.info("End autoregressive evaluation!")
 
