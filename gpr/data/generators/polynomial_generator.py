@@ -179,7 +179,7 @@ if __name__ == '__main__':
         "num_variables": 3,
         "num_realizations": 10000,  # We generate one realization per loop iteration
         "max_terms": 6,
-        "max_powers": 2,
+        "max_powers": 3,
         "use_constants": True,
         "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
@@ -190,13 +190,13 @@ if __name__ == '__main__':
         "real_const_decimal_places": 2,
         "real_constants_min": -5,
         "real_constants_max": 5,
-        "nan_inf_threshold": 0.5,
+        "nan_threshold": 0.5,
     }
 
     # Generate and print 5 different equations
     for i in range(50):
-        mantissa, exponent, expression, valid = generator(**params)
-        print(f"Equation {i+1}: {expression} expression contains NaNs/Infs: {not valid}")
+        mantissa, exponent, expression, is_nan = generator(**params)
+        print(f"Equation {i+1}: {expression} expression contains NaNs: {is_nan}")
         # latex_string = sp.latex(expression)
         # print(f"Equation {i+1}: {latex_string}")
 

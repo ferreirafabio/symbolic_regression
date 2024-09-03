@@ -50,7 +50,7 @@ class BaseGenerator(AbstractGenerator):
                  num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
                  keep_data: bool=False, sample_interval: list=[-10, 10],
-                 nan_inf_threshold: float=0.1, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+                 nan_threshold: float=0.1, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         # Check if keep_graph == False and keep_data == True. If we generate a
         # new graph we need to generate a new numpy array corresponding to that
@@ -79,17 +79,12 @@ class BaseGenerator(AbstractGenerator):
 
             
             x, y = self.evaluate_equation()
-            # Check for NaN/Inf values in y_data
-            nan_inf_count = np.isnan(y).sum() + np.isinf(y).sum()
-            nan_inf_ratio = nan_inf_count / len(y)
-            if nan_inf_ratio > nan_inf_threshold:
-                if self.verbose:
-                    print(f"NaN/Inf ratio in y: {nan_inf_ratio}")
-                    print("Skipping equation due to too many NaN/Inf values.")
+            skip, is_nan = self.check_nan_inf(y, nan_threshold)
+            if skip:
                 continue
 
-            m, e, valid = BaseGenerator.get_mantissa_exp(x, y)
-            return m, e, self.expression, valid
+            m, e = BaseGenerator.get_mantissa_exp(x, y)
+            return m, e, self.expression, is_nan
 
     def generate_random_graph(self, num_variables: int) -> None:
         """Generates a random graph."""
@@ -179,9 +174,7 @@ class BaseGenerator(AbstractGenerator):
         mantissa = torch.cat([y_mant.unsqueeze(1), x_mant], dim=1)
         exponent = torch.cat([y_exp.unsqueeze(1), x_exp], dim=1)
 
-        valid = not (np.isnan(y_data).any() or np.isinf(y_data).any())
-
-        return mantissa, exponent, valid
+        return mantissa, exponent
 
     @staticmethod
     def visualize_data(x_data: np.ndarray, y_data: np.ndarray) -> None:
@@ -214,5 +207,21 @@ class BaseGenerator(AbstractGenerator):
         simplified_exp = sp.simplify(expanded_exp)
         ordered_terms = simplified_exp.as_ordered_terms()
         return sum(ordered_terms)
+
+    def check_nan_inf(self, y: np.ndarray, nan_threshold: float) -> tuple[bool, torch.Tensor]:
+        y = np.where(np.isinf(y), np.finfo(np.float16).max, y)
+        nan_inf_count = np.isnan(y).sum() + np.isinf(y).sum()
+        nan_inf_ratio = nan_inf_count / len(y)
+        is_nan = torch.tensor(nan_inf_count > 0)
+        
+        if self.verbose:
+            print(f"NaN/Inf ratio in y: {nan_inf_ratio}")
+        
+        if nan_inf_ratio > nan_threshold:
+            if self.verbose:
+                print("Skipping equation due to too many NaN/Inf values.")
+            return True, is_nan
+        
+        return False, is_nan
 
 
