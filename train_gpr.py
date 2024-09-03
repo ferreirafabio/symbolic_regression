@@ -92,7 +92,7 @@ def main(config_dict):
     logger.info(bold(f"############### LOAD DATA on rank {rank}"))
 
     # Instantiate the equation generator
-    sympy_data = SymPySimpleDataModule(config_path=config_file,
+    sympy_data = SymPySimpleDataModule(cfg,
                                        logger=logger,
                                        )
     accelerator.wait_for_everyone()

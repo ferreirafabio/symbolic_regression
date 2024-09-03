@@ -78,7 +78,7 @@ class Config(SimpleNestedNamespace):
             raise UserWarning("ConfigHandler: config_file and config_dict is None")
 
         elif config_file is not None and config_dict is None:
-            if not config_file.endswith('.yaml'):
+            if (not config_file.endswith('.yaml')) or (not config_file.endswith('.yml')):
                 config_file += '.yaml'
 
             with open(config_file, 'r') as f:

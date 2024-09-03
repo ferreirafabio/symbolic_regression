@@ -2,8 +2,9 @@ import os
 import sys
 import socket
 import argparse
+from collections import defaultdict
 import collections
-import yaml, tqdm
+import yaml, tqdm, pathlib
 # os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
@@ -22,13 +23,14 @@ from gpr.utils.folder_manager import get_experiment_folder
 from gpr.model.module.ce_loss import FlashCrossEntropyLoss
 
 
+
 def bold(msg):
     return f"\033[1m{msg}\033[0m"
 
 
-def main(config_dict):
+def main_eval(config_dict, exp_folder, checkpoint_file):
     """
-    Launch pretraining
+    Launch evaluation
     """
     cfg = Config(config_dict=config_dict)
 
@@ -43,8 +45,6 @@ def main(config_dict):
 
     accelerate.utils.set_seed(cfg.train.seed)
 
-    if is_rank_zero:
-        exp_folder = get_experiment_folder(**cfg.experiment, new_folder=is_rank_zero)
 
     logger = logging.getLogger(__name__)
 
@@ -55,30 +55,20 @@ def main(config_dict):
             level=logging.INFO,
             handlers=[
                 logging.StreamHandler(sys.stdout),
-                logging.FileHandler(exp_folder / "logfile.txt"),
+                logging.FileHandler(exp_folder / "eval_logfile.txt"),
             ],
         )
 
-        logger.info(f"#### Load logger on rank {rank}")
-        tb_logger = SummaryWriter(
-            log_dir=exp_folder,
-        )
-
-        cfg.save_config(exp_folder)
-        fh = logging.FileHandler(exp_folder / "info.log")
-        fh.setLevel(logging.INFO)
-        logger.addHandler(fh)
 
         logger.info(f"########  Accelerate: world size {world_size} - rank {rank}")
 
         logger.info(bold("######################################################"))
-        logger.info(bold("########          START   TRAINING          ##########"))
+        logger.info(bold("########         START   EVALUATION         ##########"))
         logger.info(bold("######################################################"))
 
         logger.info(f"########  Project:    {cfg.experiment.project_name}")
         logger.info(f"########  Session:    {cfg.experiment.session_name}")
         logger.info(f"########  Experiment: {cfg.experiment.experiment_name}")
-        logger.info(f"save logs and checkpoints in: {exp_folder.as_posix()}")
 
         logger.info(bold("############### CONFIGURATION"))
         cfg_dict = cfg.get_dict()
@@ -87,25 +77,29 @@ def main(config_dict):
 
     logger.info(bold(f"############### LOAD DATA on rank {rank}"))
 
-    # Instantiate the equation generator
-    sympy_data = SymPySimpleDataModule(config_path=config_file,
+    fh = logging.FileHandler(exp_folder / "info.log")
+    fh.setLevel(logging.INFO)
+    logger.addHandler(fh)
+
+    sympy_data = SymPySimpleDataModule(cfg,
                                        logger=logger,
                                        )
     accelerator.wait_for_everyone()
 
     logger.info(bold(f"############### SETUP DATA on rank {rank}"))
     valid_loader = sympy_data.get_valid_loader()
-    # local_rank=accelerator.local_process_index
+
 
     logger.info(bold(f"############### LOAD MODEL on rank {rank}"))
-
     cfg.model.trg_vocab_size = sympy_data.vocab_size
     cfg.model.seq_vocab_size = sympy_data.vocab_size
-
     model = GPRTransformer(cfg.model)
 
 
+
     model, valid_loader = accelerator.prepare(model, valid_loader)
+
+    accelerator.load_state(checkpoint_file)
 
     if is_rank_zero:
         def count_parameters(parameters):
@@ -118,15 +112,11 @@ def main(config_dict):
     loss_func = FlashCrossEntropyLoss(ignore_index=sympy_data.ignore_index,
                                       reduction='mean')
 
-    if cfg.train.max_steps is None and cfg.train.max_epochs is None:
-        raise ValueError("You must specify either max_steps or max_epochs")
-    if cfg.train.max_steps is None:
-        cfg.train.max_steps = 1e15
-        logger.info(f"Start training for {cfg.train.max_epochs} epochs")
-    if cfg.train.max_epochs is None:
-        cfg.train.max_epochs = 1e15
-        logger.info(f"Start training for {cfg.train.max_steps} steps")
 
+    model.eval()
+
+    logger.info("Start teacher forcing evaluation!")
+    tefo_stats = defaultdict(lambda: torch.tensor(0, device=device, dtype=torch.float))
 
     for val_batch in valid_loader:
         val_batch = sympy_data.batch_to_device(val_batch, device)
@@ -136,87 +126,114 @@ def main(config_dict):
                            val_batch['in_equation'])
             val_loss = loss_func(logits.view(-1, logits.size(-1)), val_batch['trg_equation'].view(-1))
 
+        tefo_stats['loss'] += val_loss
+
         sample_count = val_batch['trg_len'].size(0)
         token_count = torch.sum(val_batch['trg_len'], dtype=torch.float)
 
-        log_probs = val_loss * token_count
-        predicted_tokens = logits.argmax(dim=-1)
-        # logger.info(f"logits shape: {logits.shape}")
-        # logger.info(f"predicted_tokens shape: {predicted_tokens.shape}")
-        # logger.info(f"trq_seq shape: {trg_seq.shape}")
-        # logger.info(f"predicted_tokens view shape: {predicted_tokens.view(-1).shape}")
-        # logger.info(f"trq_seq view: {trg_seq.view(-1).shape}")
+        tefo_stats['log_probs'] += val_loss * token_count
 
+        predicted_tokens = logits.argmax(dim=-1)
         correct_tokens = predicted_tokens == val_batch['trg_equation']
         ignore_mask = val_batch['trg_equation'] != sympy_data.ignore_index
-
         batch_accuracy = torch.sum(correct_tokens & ignore_mask, dim=-1) / val_batch['trg_len']
         batch_solved = torch.sum(batch_accuracy == 1.0)
+        tefo_stats['accuracy'] += torch.sum(batch_accuracy)
+        tefo_stats['solved'] += torch.sum(batch_solved)
 
-        acc_loss += val_loss
-        acc_log_probs += log_probs
-        acc_accuracy += torch.sum(batch_accuracy)
-        acc_solved += torch.sum(batch_solved)
-
-        acc_tokens += token_count
-        acc_samples += sample_count
-        acc_num_batches += 1
+        tefo_stats['tokens'] += token_count
+        tefo_stats['samples'] += sample_count
+        tefo_stats['num_batches'] += 1
 
         # compute MSE between predicted and true equation of the current val batch
         true_strs = sympy_data.indices_to_string(val_batch['trg_equation'])
         pred_strs = sympy_data.indices_to_string(predicted_tokens)
 
         batch_sum_mse, batch_sum_valid_eq = sympy_data.compute_mse(pred_strs, true_strs)
-        acc_equation_mse += batch_sum_mse
-        acc_valid_equation += batch_sum_valid_eq
+        tefo_stats['mse'] += batch_sum_mse
+        tefo_stats['valid'] += batch_sum_valid_eq
+        # equation_mse += batch_sum_mse
+        # valid_equation += batch_sum_valid_eq
 
-    gathered_val_loss = accelerator.gather(acc_loss)
-    gathered_num_batches = accelerator.gather(acc_num_batches)
-    gathered_acc_log_probs = accelerator.gather(acc_log_probs)
-    gathered_acc_accuracy = accelerator.gather(acc_accuracy)
-    gathered_acc_solved = accelerator.gather(acc_solved)
-    gathered_mse = accelerator.gather(acc_equation_mse)
-    gathered_valid = accelerator.gather(acc_valid_equation)
-    gathered_acc_samples = accelerator.gather(acc_samples)
-    gathered_acc_tokens = accelerator.gather(acc_tokens)
+    gathered_tefo_stats = {k:accelerator.gather(v) for k, v in tefo_stats.items()}
 
     if is_rank_zero:
-        acc_loss = torch.sum(gathered_val_loss)
-        num_batches = torch.sum(gathered_num_batches)
-        acc_log_probs = torch.sum(gathered_acc_log_probs)
-        acc_accuracy = torch.sum(gathered_acc_accuracy)
-        acc_solved = torch.sum(gathered_acc_solved)
-        acc_mse = torch.sum(gathered_mse)
-        acc_valid = torch.sum(gathered_valid)
-        acc_samples = torch.sum(gathered_acc_samples)
-        acc_tokens = torch.sum(gathered_acc_tokens)
+        sum_tefo_stats = {k:torch.sum(v) for k, v in gathered_tefo_stats.items()}
 
-        mean_val_loss = acc_loss / num_batches
-        ppl = torch.exp(acc_log_probs / acc_tokens)
-        accuracy = acc_accuracy / acc_samples
-        solved = acc_solved / acc_samples
-        mean_mse = acc_mse / acc_samples
-        valid = acc_valid / acc_samples
+        mean_val_loss = sum_tefo_stats['loss'] / sum_tefo_stats['num_batches']
+        ppl = torch.exp(sum_tefo_stats['log_probs'] / sum_tefo_stats['tokens'])
+        accuracy = sum_tefo_stats['accuracy'] / sum_tefo_stats['samples']
+        solved = sum_tefo_stats['solved'] / sum_tefo_stats['samples']
+        mean_mse = sum_tefo_stats['mse'] / sum_tefo_stats['samples']
+        valid = sum_tefo_stats['valid'] / sum_tefo_stats['samples']
 
         logger.info(
-            f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
+            f"Validation - Mean Loss: {mean_val_loss.item():.4f}"
             f" - Mean PPL: {ppl.item():.4f}"
             f" - Mean Acc: {accuracy.item():.4f}"
             f" - Mean Solved: {solved.item():.4f}"
             f" - Mean MSE: {mean_mse.item():.4f}"
             f" - Mean Valid: {valid.item():.4f}"
-            f" - Samples: {int(acc_samples.item())}"
+            f" - Samples: {int(sum_tefo_stats['samples'].item())}"
         )
-        tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
-        tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
-        tb_logger.add_scalar("valid/solved", solved.item(), step)
-        tb_logger.add_scalar(f"valid/accuracy", accuracy.item(), step)
-        tb_logger.add_scalar(f"valid/mse", mean_mse.item(), step)
-        tb_logger.add_scalar(f"valid/valid_eqs", valid.item(), step)
-        tb_logger.flush()
+
+    logger.info("End teacher forcing evaluation!")
 
 
-    logger.info("End evaluation!")
+
+
+    logger.info("Start autoregressive evaluation!")
+
+    model.eval()
+
+    max_length = cfg.model.max_len
+    eoe_index = sympy_data.eoe_index
+
+    auto_stats = defaultdict(torch.tensor(0, device=device, dtype=torch.float))
+
+    for val_batch in valid_loader:
+        val_batch = sympy_data.batch_to_device(val_batch, device)
+
+        pred_token = val_batch['in_equation'][:,0].unsqueeze(1)
+        for _ in range(max_length):
+            with torch.no_grad():
+                with accelerator.autocast():
+                    logits = model(val_batch['mantissa'],
+                                   val_batch['exponent'],
+                                   pred_token)
+
+            predicted_tokens = logits.argmax(dim=-1)
+            pred_token = torch.concat([pred_token, predicted_tokens[:,-1].unsqueeze(1)], dim=1)
+            if all([eoe_index in  s for s in pred_token]):
+                break
+
+        pred_token = pred_token[:,1:]
+
+        for pred_eq, truq_eq in zip(pred_token, val_batch['trg_equation']):
+            if eoe_index in pred_eq:
+                eq_eoe = torch.where(pred_eq == eoe_index)[0][0]
+                pred_eq = pred_eq[:eq_eoe]
+                eq_eoe = torch.where(truq_eq == eoe_index)[0][0]
+                truq_eq = truq_eq[:eq_eoe]
+
+                if pred_eq.shape[0] == truq_eq.shape[0]:
+                    accuracy = torch.sum(pred_eq == truq_eq) / truq_eq.shape[0]
+                    solved = accuracy == 1.0
+                    auto_stats['accuracy'] += accuracy
+                    auto_stats['solved'] += solved
+                else:
+                    min_idx = min(pred_eq.shape[0], truq_eq.shape[0])
+                    max_idx = max(pred_eq.shape[0], truq_eq.shape[0])
+                    accuracy = torch.sum(pred_eq[min_idx] == truq_eq[min_idx])/ max_idx
+                    auto_stats['accuracy'] += accuracy
+                    auto_stats['solved'] += 0
+                auto_stats['has_eoe'] += 1
+
+            auto_stats['samples'] += 1
+
+
+    logger.info("End autoregressive evaluation!")
+
 
 
 if __name__ == "__main__":
@@ -257,20 +274,29 @@ if __name__ == "__main__":
         return value
 
 
-    default_config_name = "default_config.yaml"
+    default_dir = "/home/joerg/workspace/experiments/first_hpo_3/setup_rel100_s20k_lr3e-4_wd01-000"
+    default_dir = "/home/joerg/workspace/python/github/ScalingSymbolicRegression/.experiments/gpr_project/design_model/test_inference_wsd_cpr-000"
 
     parser = argparse.ArgumentParser(description="Train GPT Model")
-    parser.add_argument(
-        "-c", "--config", type=str, default=default_config_name, help="config file name"
-    )
+    parser.add_argument("-d", "--dir", type=str, default=default_dir, help="config file name")
+    parser.add_argument("-c", "--checkpoint", type=str, default='last', help="checkpoint file name")
 
     args, unknown_args = parser.parse_known_args()
 
-    config_name = args.config
-    if not config_name.endswith(".yaml"):
-        config_name += ".yaml"
+    experiment_dir = args.dir
+    checkpoint = args.checkpoint
 
-    config_file = os.path.join("config", config_name)
+    if checkpoint == 'last':
+        if os.path.exists(os.path.join(experiment_dir, "pytorch_model.bin")):
+            checkpoint_file = experiment_dir
+        elif os.path.exists(os.path.join(experiment_dir, "states", "pytorch_model.bin")):
+            checkpoint_file = os.path.join(experiment_dir, "states")
+        else:
+            raise FileNotFoundError("No last checkpoint found")
+    else:
+        checkpoint_file = os.path.join(experiment_dir, checkpoint)
+
+    config_file = os.path.join(experiment_dir, "config.yml")
     with open(config_file, "r") as f:
         config_dict = yaml.load(f, Loader=yaml.Loader)
 
@@ -283,4 +309,6 @@ if __name__ == "__main__":
         else:
             raise UserWarning(f"argument unknown: {arg}")
 
-    main(config_dict)
+    experiment_dir = pathlib.Path(experiment_dir)
+
+    main_eval(config_dict, experiment_dir, checkpoint_file)

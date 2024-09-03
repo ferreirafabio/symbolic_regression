@@ -73,8 +73,7 @@ class IndexDataset(torch.utils.data.Dataset):
 
 
 class SymPySimpleDataModule(object):
-    def __init__(self, config_path, logger):
-        global_config = Config(config_file=config_path)
+    def __init__(self, global_config, logger):
         self.config = global_config.dataloader
         self.worker_seeds = np.zeros(self.config.num_workers, dtype=int)
         self.seed = self.config.generator.seed # base seed for training set
