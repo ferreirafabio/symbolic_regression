@@ -58,7 +58,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                  num_realizations: int=10, real_numbers_realizations: bool=True,
                  allowed_operations: list=None, keep_graph: bool=True,
                  keep_data: bool=False, sample_interval: list=[-10, 10],
-                 **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+                 nan_inf_threshold: float=0.1, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass
 
