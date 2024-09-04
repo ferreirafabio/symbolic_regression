@@ -218,7 +218,7 @@ class BaseGenerator(AbstractGenerator):
         y = np.where(np.isinf(y), np.finfo(np.float16).max, y)
         nan_inf_count = np.isnan(y).sum() + np.isinf(y).sum()
         nan_inf_ratio = nan_inf_count / len(y)
-        is_nan = torch.tensor(nan_inf_count > 0)
+        is_nan = torch.tensor([nan_inf_count > 0])
         
         if self.verbose:
             print(f"NaN/Inf ratio in y: {nan_inf_ratio}")
