@@ -54,10 +54,16 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         self.rng = rng
 
     @abstractmethod
-    def __call__(self, num_variables: int=5, max_terms: int=3,
-                 num_realizations: int=10, real_numbers_realizations: bool=True,
-                 allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False, sample_interval: list=[-10, 10],
+    def __call__(self, num_variables: int=5, 
+                 max_terms: int=3,
+                 num_realizations: int=10, 
+                 real_numbers_realizations: bool=True,
+                 allowed_operations: list=None, 
+                 keep_graph: bool=True,
+                 keep_data: bool=False, 
+                 sample_interval: list=[-10, 10],
+                 nan_threshold: float=0.1, 
+                #  max_depth: int=2,
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass

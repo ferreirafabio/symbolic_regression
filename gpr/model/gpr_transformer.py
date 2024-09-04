@@ -35,11 +35,11 @@ class GPRTransformer(nn.Module):
         self.embed_exponent = nn.Linear(1, config.model_dim)
 
         self.encoder = nn.ModuleList()
-        for _ in range(config.n_layers):
+        for _ in range(config.n_layers_enc):
             self.encoder.append(EncoderBlock(config))
 
         self.decoder = nn.ModuleList()
-        for _ in range(config.n_layers):
+        for _ in range(config.n_layers_dec):
             self.decoder.append(DecoderBlock(config))
 
 
@@ -133,7 +133,8 @@ if __name__ == '__main__':
         "rel_pos_enc": False,
         "initializer_range": 0.02,
         "seq_vocab_size": 1000,
-        "n_layers": 6,
+        "n_layers_enc": 6,
+        "n_layers_dec": 6,
         "rms_norm": False,
         "resi_dropout": 0.1,
         "attn_dropout": 0.1,

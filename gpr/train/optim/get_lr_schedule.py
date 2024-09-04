@@ -34,7 +34,7 @@ def get_learning_rate_schedule(scheduler_config):
             return 1.0
         elif scheduler_config.schedule == 'wsd':
             if current_step > (scheduler_config.num_training_steps - scheduler_config.num_warmup_steps):
-                return float(scheduler_config.num_training_steps - current_step) / float(max(1, scheduler_config.num_warmup_steps))
+                return scheduler_config.decay_factor + (1 - scheduler_config.decay_factor) * float(scheduler_config.num_training_steps - current_step) / float(max(1, scheduler_config.num_warmup_steps))
             else:
                 return 1.0
 
