@@ -72,27 +72,27 @@ model:
 dataloader:
     generator_type: PolynomialGenerator
     generator:
-        num_variables: 3
-        max_terms: 3
-        num_realizations: 100
-        allowed_operations: ["+", "-", "*", "/"]
-        real_const_decimal_places: 2
-        real_constants_min: -10
+        num_variables: 6
+        max_terms: 4
+        num_realizations: 256
+        allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp", "ln", "sin", "cos", "tan", "tanh", "sinh", "cosh"]
+        real_const_decimal_places: 0
+        real_constants_min: 0
         real_constants_max: 10
         max_const_exponent: 0
-        use_math_constants: False
-        sample_interval: [-10, 10]
+        use_math_constants: True
+        sample_interval: [-1, 1]
         keep_graph: False
         keep_data: False
         max_powers: 4
         seed: 1
         nan_threshold: 0.1
         max_depth: 3
-        nesting_probability: 0.5
-        unary_operation_probability: 0.5
-        exponent_probability: 0.3
-    train_samples: 50000
-    valid_samples: 500
+        nesting_probability: 0.8
+        unary_operation_probability: 0.2
+        exponent_probability: 0.1
+    train_samples: 1000000
+    valid_samples: 10000
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
