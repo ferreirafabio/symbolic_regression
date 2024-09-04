@@ -196,7 +196,7 @@ if __name__ == '__main__':
     
     # Define the parameters for the equation generation
     params = {
-        "num_variables": 3,
+        "num_variables": 6,
         "num_realizations": 256,  # We generate one realization per loop iteration
         "max_terms": 4,
         "max_powers": 4,
@@ -225,6 +225,13 @@ if __name__ == '__main__':
     for i in range(50):
         mantissa, exponent, expression, is_nan = generator(**params)
         print(f"Equation {i+1}: {expression} expression contains NaNs: {is_nan}")
+        
+        def get_constants(equation):
+            return list(equation.atoms(sp.Number))
+    
+        constants = get_constants(expression)
+        print(f"Constants: {constants}")
+
         # latex_string = sp.latex(expression)
         # print(f"Equation {i+1}: {latex_string}")
 
