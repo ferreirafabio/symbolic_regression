@@ -43,8 +43,9 @@ class PolynomialGenerator(BaseGenerator):
                 term *= self.rng.choice([-1, 1])
             
             for var in term_variables:
-                exponent = self.rng.integers(1, self.max_powers + 1)
-                term *= var ** exponent
+                if self.rng.random() < 0.1:
+                    exponent = self.rng.integers(2, self.max_powers + 1)
+                    term *= var ** exponent
         
         if self.rng.random() < self.unary_operation_probability:
             operation = self.sample_operation(self.filtered_operator_families)
