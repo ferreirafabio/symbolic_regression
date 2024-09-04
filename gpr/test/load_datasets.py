@@ -9,15 +9,15 @@ if __name__=='__main__':
     datadir = 'pmlb/datasets/'
     frames = []
     for i, f in enumerate(glob(datadir+'/*/*.tsv.gz')):
-        df = pd.read_csv(f, sep='\t')
         group = 'feynman' if 'feynman' in f else 'strogatz' if 'strogatz' in f else 'black-box'
-        if group == 'black-box': # skip the black-box functions
+        if group in ['black-box', 'strogatz']: # skip the black-box functions
             continue
 
+        df = pd.read_csv(f, sep='\t')
         features, labels, feature_names = read_file(
             f, use_dataframe=True, sep='\t'
         )
-        expression = get_sym_model(f) if group != 'black-box' else ''
+        expression = get_sym_model(f, return_str=False) if group != 'black-box' else ''
         frames.append(dict(
             name=f.split('/')[-1][:-7],
             nsamples = df.shape[0],
@@ -29,8 +29,8 @@ if __name__=='__main__':
             Feature_names = feature_names,
             Equation = expression
         ))
-        if i == 10:
-            break # just so it does not iterate over all the 419 datasets
+        #if i == 10:
+            #break # just so it does not iterate over all the 419 datasets
 
     df = pd.DataFrame.from_records(frames)
 
