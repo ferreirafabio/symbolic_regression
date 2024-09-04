@@ -235,8 +235,41 @@ class SymPySimpleDataModule(object):
 
 
 if __name__ == "__main__":
+    import sys
+    from gpr.utils.configuration import Config
 
-    sympy_data = SymPySimpleDataModule(config_path='config/default_config.yaml', exp_folder='exp')
+    def bold(msg):
+        return f"\033[1m{msg}\033[0m"
+
+    config_file = os.path.join("config/default_config.yaml")
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
+    cfg = Config(config_dict=config_dict)
+
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        format=f"[%(asctime)s][%(levelname)s][%(name)s] - %(message)s",
+        datefmt="%d/%m/%Y %H:%M:%S",
+        level=logging.INFO,
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+
+    logger.info(bold("######################################################"))
+    logger.info(bold("########         START   EVALUATION         ##########"))
+    logger.info(bold("######################################################"))
+
+    logger.info(f"########  Project:    {cfg.experiment.project_name}")
+    logger.info(f"########  Session:    {cfg.experiment.session_name}")
+    logger.info(f"########  Experiment: {cfg.experiment.experiment_name}")
+
+    logger.info(bold("############### CONFIGURATION"))
+    cfg_dict = cfg.get_dict()
+    for k, v in cfg_dict.items():
+        logger.info(f"{k}: {v}")
+
+    sympy_data = SymPySimpleDataModule(global_config=cfg, logger=logger)
     train_loader = sympy_data.get_train_loader()
     valid_loader = sympy_data.get_valid_loader()
 

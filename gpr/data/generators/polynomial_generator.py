@@ -116,6 +116,8 @@ class PolynomialGenerator(BaseGenerator):
             for _ in range(num_terms):  
                 term = self._generate_term(symbols, allowed_operations, use_math_constants, depth, max_depth)
                 terms.append(term)
+                print('##################')
+                print(term)
                 if any(sym in term.free_symbols for sym in symbols.values()):
                     has_x_term = True
 

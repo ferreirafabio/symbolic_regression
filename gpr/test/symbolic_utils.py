@@ -266,15 +266,18 @@ def get_sym_model(dataset, return_str=True):
 #     print('features:',df.columns)
     description = metadata['description'].split('\n')
     model_str = [ms for ms in description if '=' in ms][0].split('=')[-1]
-    model_str = model_str.replace('pi','3.1415926535')
+    #model_str = model_str.replace('pi','3.1415926535')
     if return_str:
         return model_str
 
     # pdb.set_trace()
     # handle feynman problem constants
 #     print('model:',model_str)
-    model_sym = parse_expr(model_str, 
-			   local_dict = {k:Symbol(k) for k in features})
+    local_dict = {k: Symbol(f'x{i}') for i, k in enumerate(features)}
+    local_dict['pi'] = sympy.pi
+    model_sym = parse_expr(model_str,
+                           local_dict = local_dict,
+                           evaluate=True)
     model_sym = round_floats(model_sym)
 #     print('sym model:',model_sym)
     return model_sym

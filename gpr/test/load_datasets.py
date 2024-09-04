@@ -29,8 +29,8 @@ if __name__=='__main__':
             Feature_names = feature_names,
             Equation = expression
         ))
-        #if i == 10:
-            #break # just so it does not iterate over all the 419 datasets
+        if i == 10:
+            break # just so it does not iterate over all the 419 datasets
 
     df = pd.DataFrame.from_records(frames)
 
