@@ -1,6 +1,6 @@
 import sympy as sp
 import random
-
+import numpy as np
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
 from gpr.data.utils import format_floats_recursive
@@ -19,6 +19,7 @@ class PolynomialGenerator(BaseGenerator):
         self.real_constants_max = kwargs.get('real_constants_max', 10.0)
         self.unary_operation_probability = kwargs.get('unary_operation_probability', 0.5)
         self.nesting_probability = kwargs.get('nesting_probability', 0.5)
+        self.exponent_probability = kwargs.get('exponent_probability', 0.1)
         self.epsilon = 1e-10 if self.real_const_decimal_places > 0 else 1
 
     def _generate_term(self, symbols, allowed_operations, use_math_constants, depth, max_depth):
@@ -43,9 +44,13 @@ class PolynomialGenerator(BaseGenerator):
                 term *= self.rng.choice([-1, 1])
             
             for var in term_variables:
-                if self.rng.random() < 0.1:
-                    exponent = self.rng.integers(2, self.max_powers + 1)
+                if self.rng.random() < self.exponent_probability:
+                    p = np.asarray([i for i in range(2, self.max_powers + 1)])[::-1]
+                    exponent = self.rng.choice([i for i in range(2, self.max_powers + 1)], p=p/sum(p))
+                    print(f"exponent: {exponent} (p: {p})")
                     term *= var ** exponent
+                else:
+                    term *= var
         
         if self.rng.random() < self.unary_operation_probability:
             operation = self.sample_operation(self.filtered_operator_families)
@@ -192,25 +197,28 @@ if __name__ == '__main__':
     # Define the parameters for the equation generation
     params = {
         "num_variables": 3,
-        "num_realizations": 10000,  # We generate one realization per loop iteration
-        "max_terms": 6,
-        "max_powers": 3,
+        "num_realizations": 256,  # We generate one realization per loop iteration
+        "max_terms": 4,
+        "max_powers": 4,
         "use_constants": True,
         # "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         # "allowed_operations": ["+", "-", "*", "/", "exp", "sqrt", "log", 'ln', 'exp', "asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth", "abs", "sign"],
-        "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
+        # "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
+        "allowed_operations": ["+", "-", "*", "/", "sin", "cos", "asin", "acos", "sqrt"],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
         "max_const_exponent": 2,
-        "real_const_decimal_places": 3,
+        "real_const_decimal_places": 0,
         "real_constants_min": -5,
         "real_constants_max": 5,
         "nan_threshold": 0.5,
-        "max_depth": 2,
-        "nesting_probability": 0.5,
-        "unary_operation_probability": 0.5,
+        "max_depth": 4, # 0-indexed depth
+        "nesting_probability": 0.8,
+        "unary_operation_probability": 0.2,
+        "sample_interval": [-1, 1],
+        "exponent_probability": 0.1,
     }
 
     # Generate and print 5 different equations
