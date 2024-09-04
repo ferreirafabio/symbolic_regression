@@ -46,11 +46,17 @@ class BaseGenerator(AbstractGenerator):
         operation = random.choice(filtered_families[family])
         return operation
 
-    def __call__(self, num_variables: int=5, max_terms: int=3,
-                 num_realizations: int=10, real_numbers_realizations: bool=True,
-                 allowed_operations: list=None, keep_graph: bool=True,
-                 keep_data: bool=False, sample_interval: list=[-10, 10],
-                 nan_threshold: float=0.1, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, num_variables: int=5, 
+                 max_terms: int=3,
+                 num_realizations: int=10, 
+                 real_numbers_realizations: bool=True,
+                 allowed_operations: list=None, 
+                 keep_graph: bool=True,
+                 keep_data: bool=False, 
+                 sample_interval: list=[-10, 10],
+                 nan_threshold: float=0.1,
+                #  max_depth: int=2, 
+                 **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         # Check if keep_graph == False and keep_data == True. If we generate a
         # new graph we need to generate a new numpy array corresponding to that
