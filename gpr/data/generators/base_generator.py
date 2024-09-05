@@ -5,8 +5,6 @@ import random
 import torch
 import matplotlib.pyplot as plt
 
-from typing import overload
-
 from gpr.data.abstract import AbstractGenerator
 
 #TODO: make trees out of the DiGraph that represent the equations
@@ -75,15 +73,16 @@ class BaseGenerator(AbstractGenerator):
             # num_nodes. Do this when self.x_data is None too.
             if (not keep_data) or (self.x_data is None):
                 self.generate_data(num_realizations=num_realizations,
-                                   real_numbers_realizations=real_numbers_realizations,
-                                   sample_interval=sample_interval)
+                                real_numbers_realizations=real_numbers_realizations,
+                                sample_interval=sample_interval)
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
 
             self.generate_equation(max_terms=max_terms,
-                                   allowed_operations=allowed_operations,
-                                   **kwargs)
+                                allowed_operations=allowed_operations,
+                                **kwargs)
+
 
             x, y = self.evaluate_equation()
             skip, is_nan = self.check_nan_inf(y, nan_threshold)

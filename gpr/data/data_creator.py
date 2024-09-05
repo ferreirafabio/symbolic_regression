@@ -20,7 +20,7 @@ from torch.nn.utils.rnn import pad_sequence
 from numpy.random import default_rng
 from tqdm import tqdm
 
-from gpr.data.generators import PolynomialGenerator, FeynmanGenerator
+from gpr.data.generators import PolynomialGenerator
 
 from gpr.utils.configuration import Config
 from sympy.parsing.latex import parse_latex
@@ -76,16 +76,6 @@ def get_base_name(config, dataset_type):
     return base_name
 
 
-def get_base_name_test(config, dataset_type):
-    # Determine file extension based on the dataset_type
-    if dataset_type == "config":
-        extension = ".yaml"
-    else:
-        extension = ".arrow"
-
-    # Join all parameters and return the base name
-    base_name = f"{dataset_type}_v{VERSION}{extension}"
-    return base_name
 
 
 class CreateDataset(object):
@@ -246,46 +236,6 @@ class CreateDataset(object):
         return True
 
 
-class CreateFeynmanDataset(CreateDataset):
-    def __init__(self, config_file=None, config_dict=None, force_creation=True):
-
-        self.force_creation = force_creation
-
-        if config_file is None and config_dict is None:
-            raise UserWarning("ConfigHandler: config_file and config_dict is None")
-
-        global_config = Config(config_file=config_file, config_dict=config_dict)
-        self.config = global_config.dataloader
-
-        self.seed = self.config.generator.seed  # base seed for training set
-        torch.cuda.manual_seed(self.seed)
-        torch.manual_seed(self.seed)
-        np.random.seed(self.seed)
-
-        self.logger = logging.getLogger(__name__)
-
-        self.rng = default_rng(self.seed)
-        self.generator = FeynmanGenerator(rng=self.rng)
-
-        num_cpus = mp.cpu_count()
-        workers = (num_cpus // 2) & ~1
-
-        data_dir = pathlib.Path(self.config.data_dir)
-        os.makedirs(data_dir, exist_ok=True)
-
-        test_base_name = get_base_name_test(self.config, "feynman")
-        test_file_name = f"test_{test_base_name}"
-        test_file_dir = (data_dir / test_file_name).as_posix()
-        self.create_set(test_file_dir, workers, self.config.test_samples,
-                        force_creation, dataset_type="test")
-
-        base_name = get_base_name_test(self.config, "dataset")
-        self.save_config(data_dir, base_name)
-
-        self.pad_index = 0
-
-
-
 
 if __name__ == "__main__":
     """
@@ -358,8 +308,7 @@ if __name__ == "__main__":
 
     config = Config(config_dict=config_dict)
 
-    #sympy_data = CreateDataset(config_dict=config_dict, force_creation=args.force_creation)
-    sympy_data = CreateFeynmanDataset(config_dict=config_dict, force_creation=args.force_creation)
+    sympy_data = CreateDataset(config_dict=config_dict, force_creation=args.force_creation)
 
 
 

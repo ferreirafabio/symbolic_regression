@@ -1,2 +1,2 @@
-from .train.polynomial_generator import PolynomialGenerator
-from .test.pmlb_generator import FeynmanGenerator
+from gpr.data.generators.polynomial_generator import PolynomialGenerator
+from gpr.data.generators.pmlb_generator import FeynmanGenerator

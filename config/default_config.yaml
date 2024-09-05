@@ -3,7 +3,6 @@ experiment:
   project_name: gpr_project
   session_name: design_model
   experiment_name: test_inference_wsd_cpr
-  inference_set: "valid" # or "test"
 
 train:
   seed: 1
@@ -74,7 +73,7 @@ dataloader:
     generator:
         num_variables: 3
         max_terms: 3
-        num_realizations: 100
+        num_realizations: 200
         allowed_operations: ["+", "-", "*", "/"]
         real_const_decimal_places: 2
         real_constants_min: -10

@@ -3,7 +3,6 @@ experiment:
   project_name: gpr_project
   session_name: design_model
   experiment_name: test_setup_2
-  inference_set: "valid" # or "test"
 
 
 train:
