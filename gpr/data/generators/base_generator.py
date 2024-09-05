@@ -366,7 +366,7 @@ class BaseGenerator(AbstractGenerator):
                     return max_constant
                 elif x < min_constant:
                     return min_constant
-            return x
+            return x # TODO replace min/max limiting with new random constant
 
         return expression.xreplace({atom: replace_out_of_range_constants(atom) for atom in expression.atoms(sp.Number)})
 
