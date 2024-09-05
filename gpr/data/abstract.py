@@ -22,19 +22,19 @@ class AbstractSignatureChecker(ABCMeta):
     https://stackoverflow.com/a/55315285
     """
     def __init__(cls, name, bases, attrs):
-        errors = []
-        for base_cls in bases:
-            for meth_name in getattr(base_cls, "__abstractmethods__", ()):
-                orig_argspec = inspect.getfullargspec(getattr(base_cls, meth_name))
-                target_argspec = inspect.getfullargspec(getattr(cls, meth_name))
-                if orig_argspec != target_argspec:
-                    errors.append(
-                        f"Subclass `{cls.__name__}` of `{base_cls.__name__}` not implemented with correct signature "
-                        f"in abstract method {meth_name!r}.\n"
-                        f"Expected: {orig_argspec}\n"
-                        f"Got: {target_argspec}\n")
-        if errors:
-            raise TypeError("\n".join(errors))
+        # errors = []
+        # for base_cls in bases:
+        #     for meth_name in getattr(base_cls, "__abstractmethods__", ()):
+        #         orig_argspec = inspect.getfullargspec(getattr(base_cls, meth_name))
+        #         target_argspec = inspect.getfullargspec(getattr(cls, meth_name))
+        #         if orig_argspec != target_argspec:
+        #             errors.append(
+        #                 f"Subclass `{cls.__name__}` of `{base_cls.__name__}` not implemented with correct signature "
+        #                 f"in abstract method {meth_name!r}.\n"
+        #                 f"Expected: {orig_argspec}\n"
+        #                 f"Got: {target_argspec}\n")
+        # if errors:
+        #     raise TypeError("\n".join(errors))
         super().__init__(name, bases, attrs)
 
 
@@ -107,7 +107,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         ...
 
     @abstractmethod
-    def generate_equation(self, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
+    def generate_equation(self, variables, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         pass
 

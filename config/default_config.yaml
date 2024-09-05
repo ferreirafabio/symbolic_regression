@@ -44,9 +44,9 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    max_var_pos: 5
+    max_var_pos: 9
     model_dim: 128
-    max_len: 200
+    max_len: 500
     num_head: 2
     n_layers_enc: 4
     n_layers_dec: 4
@@ -96,4 +96,4 @@ dataloader:
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
-    project_name: "joint_data_1"
+    project_name: "joint_data_f1"

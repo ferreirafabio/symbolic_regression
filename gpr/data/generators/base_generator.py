@@ -76,19 +76,19 @@ class BaseGenerator(AbstractGenerator):
         while True:
             # If the keep_graph == False, generate a new graph. Do this when
             # self.graph is None too.
-            if (not keep_graph) or (self.graph is None):
-                self.generate_random_graph(num_variables)
+            # if (not keep_graph) or (self.graph is None):
+            graph, variables = self.generate_random_graph(num_variables)
             # If the keep_data == False, generate a new numpy array with shape
             # (num_realizations, len(self.variables)). Here len(self.variables) ==
             # num_nodes. Do this when self.x_data is None too.
-            if (not keep_data) or (self.x_data is None):
-                self.generate_data(num_realizations=num_realizations,
-                                real_numbers_realizations=real_numbers_realizations,
-                                kmax=kmax)
+            # if (not keep_data) or (self.x_data is None):
+            x_data = self.generate_data(variables, num_realizations=num_realizations,
+                            real_numbers_realizations=real_numbers_realizations,
+                            kmax=kmax)
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
-            self.generate_equation(max_terms=max_terms,
+            equation, expression = self.generate_equation(variables, max_terms=max_terms,
                                 allowed_operations=allowed_operations,
                                 max_powers=max_powers,
                                 real_const_decimal_places=real_const_decimal_places,
@@ -102,45 +102,61 @@ class BaseGenerator(AbstractGenerator):
                                 max_const_exponent=max_const_exponent,
                                 **kwargs)
 
+            expression = self.limit_constants(expression, real_constants_max, real_constants_min)
 
-            x, y = self.evaluate_equation()
-            skip, is_nan = self.check_nan_inf(y, nan_threshold)
-            skip_large_const = self.check_large_constants(self.expression, max_constant=real_constants_max*2)
-            if skip or skip_large_const:
+            x, y = self.evaluate_equation(variables, equation, x_data)
+
+
+
+            if np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0:
+                print("No NaN or Inf values in y.")
                 continue
+            is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
+            # skip, is_nan = self.check_nan_inf(y, 0) # TODO implement nan as input to model | nan_threshold)
+            # if skip:
+            #     continue
+            #
+            # assert np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0, "No NaN or Inf values in y."
+
+            # skip_large_const = self.check_large_constants(expression, max_constant=real_constants_max*2)
+            # if skip_large_const:
+            #     continue
+
+
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
-            return m, e, self.expression, is_nan
+            return m, e, expression, is_nan
 
     def generate_random_graph(self, num_variables: int) -> None:
         """Generates a random graph."""
         num_nodes = num_variables # just a convention for now
 
-        self.graph = nx.DiGraph()
+        graph = nx.DiGraph()
         #if num_edges > (num_nodes * (num_nodes-1) / 2):
         num_edges = (num_nodes * (num_nodes-1))/2
         # Add nodes representing variables
         for i in range(1, num_nodes + 1):
-            self.graph.add_node(f"x{i}")
+            graph.add_node(f"x{i}")
 
         # Add edges representing relationships between variables
-        while len(self.graph.edges) < num_edges:
-            u, v = self.rng.choice(list(self.graph.nodes), 2, replace=False)
-            if not self.graph.has_edge(u, v):
-                self.graph.add_edge(u, v)
+        while len(graph.edges) < num_edges:
+            u, v = self.rng.choice(list(graph.nodes), 2, replace=False)
+            if not graph.has_edge(u, v):
+                graph.add_edge(u, v)
 
         # Ensure the graph remains acyclic
-        if not nx.is_directed_acyclic_graph(self.graph):
-            self.graph = nx.DiGraph([(f"x{i}", f"x{i+1}") for i in range(1, num_nodes)])
+        if not nx.is_directed_acyclic_graph(graph):
+            graph = nx.DiGraph([(f"x{i}", f"x{i+1}") for i in range(1, num_nodes)])
 
-        self.variables = sorted(self.graph.nodes, key=lambda x: int(x[1:]))
+        variables = sorted(graph.nodes, key=lambda x: int(x[1:]))
+        return graph, variables
 
     @AbstractGenerator._make_equation
     def _generate_random_expression(self, symbols: dict, allowed_operations:
                                     list, max_terms: int, **kwargs) -> sp.Eq:
         return NotImplementedError('Need to add an expression generator')
 
-    def generate_equation(self, max_terms: int, allowed_operations: list=None,
+    def generate_equation(self, variables, max_terms: int, allowed_operations: list=None,
                          use_math_constants: bool=False,
                          max_powers: int = 2,
                          real_const_decimal_places: int = 0,
@@ -159,9 +175,9 @@ class BaseGenerator(AbstractGenerator):
         if allowed_operations is None:
             allowed_operations = ["+", "-", "*", "/", "sin", "cos", "log", "exp", "**"]
 
-        symbols = {var: sp.symbols(var) for var in self.variables}
+        symbols = {var: sp.symbols(var) for var in variables}
 
-        self.expression = self._generate_random_expression(symbols,
+        expression = self._generate_random_expression(variables, symbols,
                                                         self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
                                                         max_terms,
                                                         use_math_constants=use_math_constants,
@@ -178,16 +194,18 @@ class BaseGenerator(AbstractGenerator):
                                                         epsilon=epsilon,
                                                         kmax=kmax,
                                                         **kwargs)
-        self.expression_str = str(self.expression.rhs)
-        self.expression_latex = sp.latex(self.expression)
+        self.expression_str = str(expression.rhs)
+        self.expression_latex = sp.latex(expression)
 
         #self.used_symbols = {str(var): var for var in self.expression.rhs.free_symbols}
         self.used_symbols = sorted(
-            [str(var) for var in self.expression.rhs.free_symbols], key=lambda x: int(x[1:])
+            [str(var) for var in expression.rhs.free_symbols], key=lambda x: int(x[1:])
         )
-        self.equation = sp.lambdify([symbols[var] for var in self.used_symbols],
-                                    self.expression.rhs,
+        equation = sp.lambdify([symbols[var] for var in self.used_symbols],
+                                    expression.rhs,
                                     modules="numpy")
+
+        return equation, expression
 
     def sample_from_mixture(self, num_samples, num_dimensions, kmax=5):
         # 1. Sample number of clusters and weights
@@ -237,40 +255,37 @@ class BaseGenerator(AbstractGenerator):
 
         return data
 
-    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
-        if not self.graph:
-            raise ValueError("Graph not initialized. Call generate_random_graph first.")
+    def generate_data(self, variables, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
 
-        num_variables = len(self.variables)
+        num_variables = len(variables)
         
         x_data = self.sample_from_mixture(num_realizations, num_variables, kmax)
 
         if not real_numbers_realizations:
             x_data = np.round(x_data).astype(np.int32)
         
-        self.x_data = x_data
+        return x_data
 
     def random_orthogonal_matrix(self, n):
         """Generate a random orthogonal matrix from the Haar distribution."""
         return special_ortho_group.rvs(n)
 
-    def evaluate_equation(self) -> tuple[np.ndarray, np.ndarray]:
+    def evaluate_equation(self, variables, equation, x_data) -> tuple[np.ndarray, np.ndarray]:
         """ This method indexes the currently generated data based on the used
         variables in the sampled equation. This way we can reuse the same data
         for multiple generated equations from the same graph, hence increasing
         efficiency."""
-        if not self.equation:
+        if not equation:
             raise ValueError("Equation not initialized. Call generate_equation first.")
 
         # find indeces of used symbols
-        idxs = np.where(np.isin(self.variables, self.used_symbols))[0]
+        idxs = np.where(np.isin(variables, self.used_symbols))[0]
         # Apply the equation's functional mechanism
         # TODO: this can throw a RunTimeWarning on overflow, can't be caught with except?
-        y_data = self.equation(*[self.x_data[:, i] for i in idxs])
+        y_data = equation(*[x_data[:, i] for i in idxs])
         #y_data = self.equation(*[self.x_data[:, i] for i in range(len(self.variables))])
-        self.y_data = y_data
 
-        return self.x_data[:, idxs], y_data
+        return x_data[:, idxs], y_data
 
     @staticmethod
     def get_mantissa_exp(x_data: np.ndarray, y_data: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
@@ -331,6 +346,10 @@ class BaseGenerator(AbstractGenerator):
         return False, is_nan
 
     def check_large_constants(self, expression: sp.Eq, max_constant: float = 1e6) -> tuple[bool, torch.Tensor]:
+        for e in expression.atoms(sp.Number):
+            print(e)
+            e = 5
+
         constants = list(expression.atoms(sp.Number))
         has_large_constant = any(abs(float(c)) > abs(max_constant) for c in constants)
         
@@ -338,3 +357,16 @@ class BaseGenerator(AbstractGenerator):
             print(f"Skipping equation due to large constant(s): {[c for c in constants if abs(float(c)) > max_constant]}")
         
         return has_large_constant
+
+
+    def limit_constants(self, expression, max_constant, min_constant):
+        def replace_out_of_range_constants(x):
+            if isinstance(x, sp.Number) and x.is_real:
+                if x > max_constant:
+                    return max_constant
+                elif x < min_constant:
+                    return min_constant
+            return x
+
+        return expression.xreplace({atom: replace_out_of_range_constants(atom) for atom in expression.atoms(sp.Number)})
+

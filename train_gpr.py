@@ -181,8 +181,8 @@ def main(config_dict):
                                            val_batch['exponent'], 
                                            val_batch['in_equation'])
                             val_loss = loss_func(logits.view(-1, logits.size(-1)), val_batch['trg_equation'].view(-1))
-                            
-                            
+
+
                         sample_count = val_batch['trg_len'].size(0)
                         token_count = torch.sum(val_batch['trg_len'], dtype=torch.float)
 

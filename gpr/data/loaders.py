@@ -116,6 +116,31 @@ class SymPySimpleDataModule(object):
         return batch
 
 
+    def stack_batch(self, batch):
+
+        mantissa_stack = pad_sequence(batch['mantissa'],
+                                      batch_first=True,
+                                      padding_value=0).transpose(2, 1)
+        exponent_stack = pad_sequence(batch['exponent'],
+                                      batch_first=True,
+                                      padding_value=0).transpose(2, 1).to(mantissa_stack.dtype)
+
+        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.uint8), tokens]) for tokens in
+                     batch['token_tensor']]
+        input_seq_stack = pad_sequence(input_seq, batch_first=True, padding_value=self.pad_index)
+
+        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.uint8)]) for tokens in
+                      batch['token_tensor']]
+        target_seq_stack = pad_sequence(target_seq, batch_first=True, padding_value=self.ignore_index)
+
+        return {"mantissa": mantissa_stack,
+                "exponent": exponent_stack,
+                "in_equation": input_seq_stack,
+                "trg_equation": target_seq_stack,
+                'trg_len': torch.tensor([seq.shape[0] + 1 for seq in batch['token_tensor']])}
+
+
+
     def index_pa_collator(self, indices, dataset, num_realizations):
         """get a set of samples. return a batch for tbl and trg_tex. pad target
         sequence with ignore index and input table with pad index."""
@@ -137,27 +162,9 @@ class SymPySimpleDataModule(object):
 
                 batch[key].append(tensor_data.t())  # Transpose for PyTorch
 
-            # batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
+        return self.stack_batch(batch)
 
-        mantissa_stack = pad_sequence(batch['mantissa'],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1)
-        exponent_stack = pad_sequence(batch['exponent'],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
 
-        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.uint8), tokens]) for tokens in batch['token_tensor']]
-        input_seq_stack = pad_sequence(input_seq, batch_first=True, padding_value=self.pad_index)
-
-        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.uint8)]) for tokens in batch['token_tensor']]
-        target_seq_stack = pad_sequence(target_seq, batch_first=True, padding_value=self.ignore_index)
-
-        return {"mantissa": mantissa_stack,
-                "exponent": exponent_stack,
-                "in_equation": input_seq_stack,
-                "trg_equation": target_seq_stack,
-                # "latex_equation": batch['latex_expression'],
-                'trg_len': torch.tensor([seq.shape[0] + 1 for seq in batch['token_tensor']])}
 
 
     def index_pa_sets_collator(self, indices, datasets_lookup, num_realizations):
@@ -176,6 +183,7 @@ class SymPySimpleDataModule(object):
             i = i - pre_i
 
             sample = dataset.get_record_batch(i)
+
             for key in ['mantissa', 'exponent', 'token_tensor']:
                 array_data = np.array(sample[key].to_pylist()[0])
                 tensor_data = torch.from_numpy(array_data)
@@ -191,25 +199,7 @@ class SymPySimpleDataModule(object):
 
             # batch['latex_expression'].append(sample['latex_expression'].to_pylist()[0])
 
-        mantissa_stack = pad_sequence(batch['mantissa'],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1)
-        exponent_stack = pad_sequence(batch['exponent'],
-                                      batch_first=True,
-                                      padding_value=self.pad_index).transpose(2,1).to(mantissa_stack.dtype)
-
-        input_seq = [torch.cat([torch.tensor([self.soe_index], dtype=torch.uint8), tokens]) for tokens in batch['token_tensor']]
-        input_seq_stack = pad_sequence(input_seq, batch_first=True, padding_value=self.pad_index)
-
-        target_seq = [torch.cat([tokens, torch.tensor([self.eoe_index], dtype=torch.uint8)]) for tokens in batch['token_tensor']]
-        target_seq_stack = pad_sequence(target_seq, batch_first=True, padding_value=self.ignore_index)
-
-        return {"mantissa": mantissa_stack,
-                "exponent": exponent_stack,
-                "in_equation": input_seq_stack,
-                "trg_equation": target_seq_stack,
-                # "latex_equation": batch['latex_expression'],
-                'trg_len': torch.tensor([seq.shape[0] + 1 for seq in batch['token_tensor']])}
+        return self.stack_batch(batch)
 
 
     def get_data_loader(self, set_name: str):
