@@ -80,7 +80,7 @@ dataloader:
         real_constants_max: 10
         max_const_exponent: 2
         use_math_constants: False
-        sample_interval: [-10, 10]
+        kmax: 5
         keep_graph: False
         keep_data: False
         max_powers: 2

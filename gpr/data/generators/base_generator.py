@@ -4,6 +4,7 @@ import sympy as sp
 import random
 import torch
 import matplotlib.pyplot as plt
+from scipy.stats import special_ortho_group
 
 from gpr.data.abstract import AbstractGenerator
 
@@ -53,9 +54,8 @@ class BaseGenerator(AbstractGenerator):
                  allowed_operations: list=None, 
                  keep_graph: bool=True,
                  keep_data: bool=False, 
-                 sample_interval: list=[-10, 10],
                  nan_threshold: float=0.1,
-                #  max_depth: int=2, 
+                 kmax: int=5,
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         # Check if keep_graph == False and keep_data == True. If we generate a
@@ -74,7 +74,7 @@ class BaseGenerator(AbstractGenerator):
             if (not keep_data) or (self.x_data is None):
                 self.generate_data(num_realizations=num_realizations,
                                 real_numbers_realizations=real_numbers_realizations,
-                                sample_interval=sample_interval)
+                                kmax=kmax)
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
@@ -86,7 +86,8 @@ class BaseGenerator(AbstractGenerator):
 
             x, y = self.evaluate_equation()
             skip, is_nan = self.check_nan_inf(y, nan_threshold)
-            if skip:
+            skip_large_const = self.check_large_constants(self.expression, max_constant=self.real_constants_max*2)
+            if skip or skip_large_const:
                 continue
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
@@ -142,17 +143,67 @@ class BaseGenerator(AbstractGenerator):
                                     self.expression.rhs,
                                     modules="numpy")
 
-    def generate_data(self, num_realizations: int, real_numbers_realizations:
-                      bool=True, sample_interval: list=[-10, 10]) -> None:
-        """Generates a dataset based on the random graph."""
+    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
+        """
+        Generates num_realizations input values using a mixture of distributions (Uniform and Gaussian), centered around kmax random centroids with random rotations.
+
+        Args:
+            num_realizations (int): Number of data points to generate.
+            real_numbers_realizations (bool): If True, use continuous distributions.
+            kmax (int): Maximum number of clusters in the mixture.
+        """
         if not self.graph:
             raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
-        dist = self.rng.uniform if real_numbers_realizations else self.rng.integers
-        x_data = dist(sample_interval[0], sample_interval[1],
-                      size=(num_realizations,
-                            len(self.variables))).astype('float32')
+        num_variables = len(self.variables)
+        
+        # 1. Sample number of clusters and weights
+        k = self.rng.integers(1, kmax + 1)
+        weights = self.rng.dirichlet(np.ones(k))
+
+        # 2. Sample cluster parameters
+        centroids = self.rng.normal(0, 1, (k, num_variables))
+        scales = self.rng.uniform(0.1, 2, (k, num_variables)) 
+        distributions = self.rng.choice([self.rng.normal, self.rng.uniform], k)
+        
+        # 3. Generate data for each cluster
+        x_data = np.zeros((num_realizations, num_variables), dtype=np.float32)
+        samples_per_cluster = np.round(weights * num_realizations).astype(int)
+        samples_per_cluster[-1] = num_realizations - samples_per_cluster[:-1].sum()  # Ensures total is correct
+        
+        start = 0
+        for i in range(k):
+            end = start + samples_per_cluster[i]
+            if distributions[i] == self.rng.normal:
+                cluster_data = distributions[i](centroids[i], scales[i], (samples_per_cluster[i], num_variables))
+            # uniform distribution
+            else:
+                low = centroids[i] - scales[i]
+                high = centroids[i] + scales[i]
+                cluster_data = distributions[i](low, high, (samples_per_cluster[i], num_variables))
+            
+            # Apply random rotation from Haar distribution
+            rotation_matrix = self.random_orthogonal_matrix(num_variables)
+            cluster_data = np.dot(cluster_data, rotation_matrix)
+            
+            x_data[start:end] = cluster_data
+            start = end
+        
+        # Shuffle the data
+        self.rng.shuffle(x_data)
+
+        if not real_numbers_realizations:
+            x_data = np.round(x_data).astype(np.int32)
+        
+        # Scale the data to the desired interval
+        # min_val, max_val = sample_interval
+        # x_data = min_val + (max_val - min_val) * (x_data - x_data.min()) / (x_data.max() - x_data.min())
+        
         self.x_data = x_data
+
+    def random_orthogonal_matrix(self, n):
+        """Generate a random orthogonal matrix from the Haar distribution."""
+        return special_ortho_group.rvs(n)
 
     def evaluate_equation(self) -> tuple[np.ndarray, np.ndarray]:
         """ This method indexes the currently generated data based on the used
@@ -230,4 +281,11 @@ class BaseGenerator(AbstractGenerator):
         
         return False, is_nan
 
-
+    def check_large_constants(self, expression: sp.Eq, max_constant: float = 1e6) -> tuple[bool, torch.Tensor]:
+        constants = list(expression.atoms(sp.Number))
+        has_large_constant = any(abs(float(c)) > abs(max_constant) for c in constants)
+        
+        if self.verbose and has_large_constant:
+            print(f"Skipping equation due to large constant(s): {[c for c in constants if abs(float(c)) > max_constant]}")
+        
+        return has_large_constant

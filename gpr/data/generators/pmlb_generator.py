@@ -131,7 +131,7 @@ if __name__ == '__main__':
         "max_depth": 4, # 0-indexed depth
         "nesting_probability": 0.8,
         "unary_operation_probability": 0.2,
-        "sample_interval": [-1, 1],
+        "kmax": 5,
         "exponent_probability": 0.1,
     }
 

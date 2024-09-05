@@ -49,6 +49,7 @@ def get_base_name(config, dataset_type):
         f"mc{config.generator.use_math_constants}",
         f"me{config.generator.max_const_exponent}",
         f"mp{config.generator.max_powers}",
+        f"kmax{config.generator.kmax}",
         f"rcmin{config.generator.real_constants_min}",
         f"rcmax{config.generator.real_constants_max}",
     ]
@@ -59,11 +60,6 @@ def get_base_name(config, dataset_type):
         safe_ops = [char_map.get(op, op) for op in config.generator.allowed_operations]
         ops = "_".join(sorted(safe_ops))
         params.append(f"ops_{ops}")
-    
-    # Add sample interval if present
-    if config.generator.sample_interval:
-        intervals = "_".join([str(x) for x in config.generator.sample_interval])
-        params.append(f"sample_intervals_{intervals}")
     
     # Determine file extension based on the dataset_type
     if dataset_type == "config":

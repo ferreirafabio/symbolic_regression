@@ -11,7 +11,7 @@ dataloader:
         real_constants_max: 10
         max_const_exponent: 0
         use_math_constants: True
-        sample_interval: [-1, 1]
+        kmax: 5
         keep_graph: False
         keep_data: False
         max_powers: 4

@@ -75,9 +75,8 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                  allowed_operations: list=None, 
                  keep_graph: bool=True,
                  keep_data: bool=False, 
-                 sample_interval: list=[-10, 10],
                  nan_threshold: float=0.1, 
-                #  max_depth: int=2,
+                 kmax: int=5,
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass
@@ -119,7 +118,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
 
     @abstractmethod
     def generate_data(self, num_realizations: int, real_numbers_realizations:
-                      bool=True, sample_interval: list=[-10, 10]) -> None:
+                      bool=True, kmax: int=5) -> None:
         """Generates a dataset based on the random graph."""
         pass
 
