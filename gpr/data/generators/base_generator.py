@@ -363,9 +363,9 @@ class BaseGenerator(AbstractGenerator):
         def replace_out_of_range_constants(x):
             if isinstance(x, sp.Number) and x.is_real:
                 if x > max_constant:
-                    return max_constant
+                    return self.rng.integers(min_constant, max_constant)
                 elif x < min_constant:
-                    return min_constant
+                    return self.rng.integers(min_constant, max_constant)
             return x # TODO replace min/max limiting with new random constant
 
         return expression.xreplace({atom: replace_out_of_range_constants(atom) for atom in expression.atoms(sp.Number)})
