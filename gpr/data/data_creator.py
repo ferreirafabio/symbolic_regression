@@ -75,7 +75,7 @@ def get_base_name(config, dataset_type):
 
 
 class CreateDataset(object):
-    def __init__(self, config_file=None, config_dict=None, force_creation=True):
+    def __init__(self, config_file=None, config_dict=None, force_creation=True, create_valid=True):
 
         self.force_creation = force_creation
 
@@ -116,10 +116,11 @@ class CreateDataset(object):
         train_file_dir = (data_dir / train_file_name).as_posix()
         self.create_set(train_file_dir, workers, self.config.train_samples, force_creation, dataset_type="train")
 
-        valid_base_name = get_base_name(self.config, "valid")
-        valid_file_name = f"valid_{valid_base_name}"
-        valid_file_dir = (data_dir / valid_file_name).as_posix()
-        self.create_set(valid_file_dir, workers, self.config.valid_samples, force_creation, dataset_type="valid")
+        if create_valid:
+            valid_base_name = get_base_name(self.config, "valid")
+            valid_file_name = f"valid_{valid_base_name}"
+            valid_file_dir = (data_dir / valid_file_name).as_posix()
+            self.create_set(valid_file_dir, workers, self.config.valid_samples, force_creation, dataset_type="valid")
 
         base_name = get_base_name(self.config, "dataset")
         self.save_config(data_dir, base_name)
@@ -281,6 +282,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate Dataset")
     parser.add_argument("-c", "--config", type=str, default=default_config_name, help="config file name")
+    parser.add_argument("-v", "--no_valid", action="store_false", help="no validation set")
     parser.add_argument("-f", "--force_creation", action="store_true", help="force creation of dataset")
 
     args, unknown_args = parser.parse_known_args()
@@ -304,7 +306,7 @@ if __name__ == "__main__":
 
     config = Config(config_dict=config_dict)
 
-    sympy_data = CreateDataset(config_dict=config_dict, force_creation=args.force_creation)
+    sympy_data = CreateDataset(config_dict=config_dict, force_creation=args.force_creation, create_valid=args.no_valid)
 
 
 

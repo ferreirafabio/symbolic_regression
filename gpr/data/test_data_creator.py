@@ -69,6 +69,10 @@ class CreateFeynmanDataset(CreateDataset):
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
 
+        if "project_name" in self.config and self.config.project_name:
+            data_dir = data_dir / self.config.project_name
+            os.makedirs(data_dir, exist_ok=True)
+
         test_base_name = get_base_name_test(self.config, "feynman")
         test_file_name = f"test_{test_base_name}"
         test_file_dir = (data_dir / test_file_name).as_posix()

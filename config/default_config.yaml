@@ -90,7 +90,7 @@ dataloader:
         nesting_probability: 0.5
         unary_operation_probability: 0.5
         exponent_probability: 0.3
-    train_samples: 50000
+    train_samples: 5000
     valid_samples: 500
     test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64
