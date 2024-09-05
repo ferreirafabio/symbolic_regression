@@ -164,20 +164,37 @@ class SymPySimpleDataModule(object):
 
         assert set_name in ['train', 'valid']
 
-        base_name = get_base_name(self.config, set_name)
+        if self.config.project_name is not None:
+            base_name = get_base_name(self.config, set_name)
 
-        file_name = f"{set_name}_{base_name}"
-        data_dir = pathlib.Path(self.config.data_dir)
-        file_dir = (data_dir / file_name).as_posix()
+            file_name = f"{set_name}_{base_name}"
+            data_dir = pathlib.Path(self.config.data_dir)
+            file_dir = (data_dir / file_name).as_posix()
 
-        if not os.path.exists(file_dir):
-            available_files = os.listdir(data_dir)
-            available_files_str = "\n".join(available_files) if available_files else "No files found."
+            if not os.path.exists(file_dir):
+                available_files = os.listdir(data_dir)
+                available_files_str = "\n".join(available_files) if available_files else "No files found."
 
-            raise FileNotFoundError(
-                f"Data file '{file_dir}' not found. Run the data creation script first.\n"
-                f"Available files in '{data_dir}':\n{available_files_str}"
-            )
+                raise FileNotFoundError(
+                    f"Data file '{file_dir}' not found. Run the data creation script first.\n"
+                    f"Available files in '{data_dir}':\n{available_files_str}"
+                )
+        else:
+            data_dir = pathlib.Path(self.config.data_dir)
+            project_dir = (data_dir / self.config.project_name).as_posix()
+            arrow_files = []
+            for root, dirs, files in os.walk(project_dir):
+                for file in files:
+                    if set_name in file and file.endswith('.arrow'):
+                        file_dir = os.path.join(root, file)
+                        arrow_files.append(file_dir)
+
+            if len(arrow_files) == 0:
+                raise FileNotFoundError(f"No files found for {set_name} in {project_dir}")
+
+
+
+
 
         mmap = pa.memory_map(file_dir)
         self.logger.info("MMAP Read ALL")
