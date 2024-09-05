@@ -10,31 +10,29 @@ class PolynomialGenerator(BaseGenerator):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.filtered_operator_families = None
-        
-        self.process_kwargs(**kwargs)
-
-    def process_kwargs(self, **kwargs):
-        self.max_powers = kwargs.get('max_powers', 2)
-        self.real_const_decimal_places = kwargs.get('real_const_decimal_places', 0)
-        self.real_constants_min = kwargs.get('real_constants_min', -3.)
-        self.real_constants_max = kwargs.get('real_constants_max', 3.)
-        self.unary_operation_probability = kwargs.get('unary_operation_probability', 0.5)
-        self.nesting_probability = kwargs.get('nesting_probability', 0.5)
-        self.exponent_probability = kwargs.get('exponent_probability', 0.1)
-        self.epsilon = 1e-10 if self.real_const_decimal_places > 0 else 1
-
-        print("Processed kwargs:")
-        for key, value in self.__dict__.items():
-            if key.startswith('_') or key in ['x_data', 'y_data']:
-                continue
-            if hasattr(value, 'shape') and len(value.shape) < 10:
-                print(f"{key}: {value}")
-            elif not hasattr(value, 'shape'):
-                print(f"{key}: {value}")
+        self.valid_operations = {
+            "+", "-", "*", "/", '^', 'log', 'ln', 'exp', "sin", "cos", 
+            "tan", "cot", "asin", "acos", "atan", "acot", "sinh", "cosh", 
+            "tanh", "coth", "asinh", "acosh", "atanh", "acoth", "sqrt", 
+            "abs", "sign"
+            }
 
 
-    def _generate_term(self, symbols, allowed_operations, use_math_constants, depth, max_depth):
+    def _generate_term(self, 
+                       symbols: dict, 
+                       allowed_operations: list, 
+                       use_math_constants: bool, 
+                       depth: int, 
+                       max_depth: int, 
+                       kmax: int, 
+                       exponent_probability: float, 
+                       max_powers: int, 
+                       real_const_decimal_places: int, 
+                       nesting_probability: float,
+                       unary_operation_probability: float,
+                        ):
         constants = [sp.pi, sp.E] if use_math_constants else []
         use_constant = self.rng.choice([True, False]) if constants else False
         
@@ -44,35 +42,47 @@ class PolynomialGenerator(BaseGenerator):
             num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
             term_variables = list(symbols.values())[:num_vars_in_term]
 
-            if self.real_const_decimal_places > 0:
-                term = round(
-                    self.rng.uniform(self.real_constants_min, self.real_constants_max),
-                    self.real_const_decimal_places
-                )
+            # Sample coefficients for each term variable
+            coefficients = self.sample_from_mixture(num_vars_in_term, 1, kmax).flatten()
+            
+            # print(coefficients)
+            # if self.scale_constants:
+                # coefficients = self.real_constants_min + (self.real_constants_max - self.real_constants_min) * (coefficients - coefficients.min()) / (coefficients.max() - coefficients.min())
+            
+            if real_const_decimal_places > 0:
+                coefficients = np.round(coefficients, real_const_decimal_places)
             else:
-                term = self.rng.integers(self.real_constants_min, self.real_constants_max)
-            
-            if "-" in allowed_operations:
-                term *= self.rng.choice([-1, 1])
-            
-            for var in term_variables:
-                if self.rng.random() < self.exponent_probability:
-                    p = np.asarray([i for i in range(2, self.max_powers + 1)])[::-1]
-                    exponent = self.rng.choice([i for i in range(2, self.max_powers + 1)], p=p/sum(p))
-                    # print(f"exponent: {exponent} (p: {p})")
-                    term *= var ** exponent
+                coefficients = coefficients.astype(int)
+
+            term = 1
+            for var, coeff in zip(term_variables, coefficients):
+                if self.rng.random() < exponent_probability:
+                    p = np.asarray([i for i in range(2, max_powers + 1)])[::-1]
+                    exponent = self.rng.choice([i for i in range(2, max_powers + 1)], p=p/sum(p))
+                    term *= coeff * (var ** exponent)
                 else:
-                    term *= var
+                    term *= coeff * var
         
-        if self.rng.random() < self.unary_operation_probability:
+        if self.rng.random() < unary_operation_probability:
             operation = self.sample_operation(self.filtered_operator_families)
-            term = self.apply_unary_operation(term, operation)
+            term = self.apply_unary_operation(term, operation, real_const_decimal_places)
         
-        if depth < max_depth and self.rng.random() < self.nesting_probability:
+        if depth < max_depth and self.rng.random() < nesting_probability:
             # print(f"nesting depth {depth}")
-            nested_term = self._generate_term(symbols, allowed_operations, use_math_constants, depth + 1, max_depth)
+            nested_term = self._generate_term(symbols, 
+                                            allowed_operations, 
+                                            use_math_constants, 
+                                            depth + 1, 
+                                            max_depth, 
+                                            kmax, 
+                                            exponent_probability, 
+                                            max_powers, 
+                                            real_const_decimal_places, 
+                                            nesting_probability,
+                                            unary_operation_probability,
+                                            )
             term = self.compose_terms(term, nested_term)
-            term = format_floats_recursive(term, self.real_const_decimal_places)
+            term = format_floats_recursive(term, real_const_decimal_places)
         
         return term
 
@@ -91,7 +101,24 @@ class PolynomialGenerator(BaseGenerator):
         return polynomial
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, symbols: dict, allowed_operations: list, max_terms: int, use_math_constants: bool=False, depth: int=0, max_depth: int=2, **kwargs) -> sp.Eq:
+    def _generate_random_expression(self, 
+                                    symbols: dict, 
+                                    allowed_operations: list, 
+                                    max_terms: int, 
+                                    use_math_constants: bool, 
+                                    max_powers: int, 
+                                    real_const_decimal_places: int, 
+                                    real_constants_min: float, 
+                                    real_constants_max: float, 
+                                    unary_operation_probability: float, 
+                                    nesting_probability: float, 
+                                    exponent_probability: float, 
+                                    max_depth: int, 
+                                    use_epsilon: bool, 
+                                    max_const_exponent: int, 
+                                    epsilon: float, 
+                                    kmax: int, 
+                                    **kwargs) -> sp.Eq:
         """
         Generates a random polynomial expression using the provided symbols and operations.
 
@@ -100,13 +127,18 @@ class PolynomialGenerator(BaseGenerator):
         symbols : dict, A dictionary of SymPy symbols representing variables.
         allowed_operations : list, List of operations to include: "+", "-", "*", "/", "log", "exp", "sin", "cos".
         max_terms : int, Maximum number of terms in the polynomial.
-        use_math_constants : bool, optional, Whether to include mathematical constants like pi and e (default is False).
-        depth : int, Current depth of nested terms.
+        max_powers : int, Maximum power for variable exponents.
+        real_const_decimal_places : int, Decimal precision for real constants.
+        real_constants_min : float, Minimum value for real constants.
+        real_constants_max : float, Maximum value for real constants.
+        unary_operation_probability : float, Probability of applying a unary operation.
+        nesting_probability : float, Probability of nesting terms.
+        exponent_probability : float, Probability of applying an exponent.
         max_depth : int, Maximum depth of nested terms.
-        **kwargs : dict, Additional options, e.g., max_powers (int) for variable exponents,
-            real_const_decimal_places (int) for decimal precision of real constants,
-            real_constants_min (float) and real_constants_max (float) for setting the range of real constants.
-            max_const_exponent (int) to set the maximum exponent value in scientific notation.
+        use_epsilon : bool, Whether to use epsilon in unary operations.
+        max_const_exponent : int, Maximum exponent value in scientific notation.
+        epsilon : float, Epsilon value for unary operations.
+        kmax : int, Maximum value for coefficients.
 
         Returns:
         -------
@@ -117,10 +149,9 @@ class PolynomialGenerator(BaseGenerator):
         ValueError, If any operation in `allowed_operations` is unsupported.
         """
         
-
-        valid_operations = {"+", "-", "*", "/", '^', 'log', 'ln', 'exp', "sin", "cos", "tan", "cot", "asin", "acos", "atan", "acot", "sinh", "cosh", "tanh", "coth", "asinh", "acosh", "atanh", "acoth", "sqrt", "abs", "sign"}
-        if not all(op in valid_operations for op in allowed_operations):
-            raise ValueError(f"allowed_operations can only contain {valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
+        depth = 0
+        if not all(op in self.valid_operations for op in allowed_operations):
+            raise ValueError(f"allowed_operations can only contain {self.valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
 
         if self.filtered_operator_families is None:
             self.filtered_operator_families = self.filter_families(allowed_operations)
@@ -131,7 +162,18 @@ class PolynomialGenerator(BaseGenerator):
             has_x_term = False
 
             for _ in range(num_terms):  
-                term = self._generate_term(symbols, allowed_operations, use_math_constants, depth, max_depth)
+                term = self._generate_term(symbols, 
+                                           allowed_operations, 
+                                           use_math_constants, 
+                                           depth, 
+                                           max_depth, 
+                                           kmax, 
+                                           exponent_probability, 
+                                           max_powers, 
+                                           real_const_decimal_places, 
+                                           nesting_probability,
+                                           unary_operation_probability,
+                                           )
                 terms.append(term)
                 if any(sym in term.free_symbols for sym in symbols.values()):
                     has_x_term = True
@@ -140,7 +182,7 @@ class PolynomialGenerator(BaseGenerator):
                 continue
 
             polynomial = self._connect_terms(terms, allowed_operations)
-            polynomial = format_floats_recursive(polynomial, self.real_const_decimal_places)
+            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
             polynomial = sp.simplify(polynomial)
 
             if not polynomial.has(*symbols.values()):
@@ -156,15 +198,17 @@ class PolynomialGenerator(BaseGenerator):
             if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                 break
 
-            polynomial = format_floats_recursive(polynomial, self.real_const_decimal_places)
+            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
 
         return polynomial
     
-    def apply_unary_operation(self, term, operation):
+    def apply_unary_operation(self, term, operation, real_const_decimal_places):
+        epsilon = 1e-10 if real_const_decimal_places > 0 else 1
+
         if operation == "log":
-            return sp.log(sp.Abs(term + self.epsilon), 10)
+            return sp.log(sp.Abs(term + epsilon), 10)
         elif operation == "ln":
-            return sp.ln(sp.Abs(term + self.epsilon))
+            return sp.ln(sp.Abs(term + epsilon))
         elif operation == "exp":
             return sp.exp(term)
         elif operation in ["asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth"]:
@@ -222,7 +266,7 @@ if __name__ == '__main__':
         "keep_data": False,
         "use_epsilon": True,
         "max_const_exponent": 2,
-        "real_const_decimal_places": 0,
+        "real_const_decimal_places": 3,
         "real_constants_min": -2.,
         "real_constants_max": 2.,
         "nan_threshold": 0.5,

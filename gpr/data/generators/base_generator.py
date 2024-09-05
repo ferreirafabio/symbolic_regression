@@ -12,7 +12,7 @@ from gpr.data.abstract import AbstractGenerator
 
 
 class BaseGenerator(AbstractGenerator):
-    def __init__(self, rng=None, verbose=False):
+    def __init__(self, rng=None, verbose=False, *args, **kwargs):
         super().__init__(rng=rng)
 
         self.rng = rng if rng is not None else np.random.default_rng()
@@ -47,15 +47,25 @@ class BaseGenerator(AbstractGenerator):
         operation = random.choice(filtered_families[family])
         return operation
 
-    def __call__(self, num_variables: int=5, 
-                 max_terms: int=3,
-                 num_realizations: int=10, 
-                 real_numbers_realizations: bool=True,
-                 allowed_operations: list=None, 
-                 keep_graph: bool=True,
-                 keep_data: bool=False, 
-                 nan_threshold: float=0.1,
-                 kmax: int=5,
+    def __call__(self, num_variables: int = 5,
+                 max_terms: int = 3,
+                 num_realizations: int = 10,
+                 real_numbers_realizations: bool = True,
+                 allowed_operations: list = None,
+                 keep_graph: bool = True,
+                 keep_data: bool = False,
+                 nan_threshold: float = 0.1,
+                 kmax: int = 5,
+                 max_powers: int = 3,  # Changed from 2 to 3
+                 real_const_decimal_places: int = 0,
+                 real_constants_min: float = -3.,
+                 real_constants_max: float = 3.,
+                 unary_operation_probability: float = 0.5,
+                 nesting_probability: float = 0.5,
+                 exponent_probability: float = 0.1,
+                 max_depth: int = 2,
+                 use_epsilon: bool = True,
+                 max_const_exponent: int = 2,
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         # Check if keep_graph == False and keep_data == True. If we generate a
@@ -78,15 +88,24 @@ class BaseGenerator(AbstractGenerator):
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
-
             self.generate_equation(max_terms=max_terms,
                                 allowed_operations=allowed_operations,
+                                max_powers=max_powers,
+                                real_const_decimal_places=real_const_decimal_places,
+                                real_constants_min=real_constants_min,
+                                real_constants_max=real_constants_max,
+                                unary_operation_probability=unary_operation_probability,
+                                nesting_probability=nesting_probability,
+                                exponent_probability=exponent_probability,
+                                max_depth=max_depth,
+                                use_epsilon=use_epsilon,
+                                max_const_exponent=max_const_exponent,
                                 **kwargs)
 
 
             x, y = self.evaluate_equation()
             skip, is_nan = self.check_nan_inf(y, nan_threshold)
-            skip_large_const = self.check_large_constants(self.expression, max_constant=self.real_constants_max*2)
+            skip_large_const = self.check_large_constants(self.expression, max_constant=real_constants_max*2)
             if skip or skip_large_const:
                 continue
 
@@ -122,6 +141,19 @@ class BaseGenerator(AbstractGenerator):
         return NotImplementedError('Need to add an expression generator')
 
     def generate_equation(self, max_terms: int, allowed_operations: list=None,
+                         use_math_constants: bool=False,
+                         max_powers: int = 2,
+                         real_const_decimal_places: int = 0,
+                         real_constants_min: float = -3.,
+                         real_constants_max: float = 3.,
+                         unary_operation_probability: float = 0.5,
+                         nesting_probability: float = 0.5,
+                         exponent_probability: float = 0.1,
+                         max_depth: int = 2,
+                         use_epsilon: bool = True,
+                         max_const_exponent: int = 2,
+                         epsilon: float = 1e-10,
+                         kmax: int = 5,
                          **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         if allowed_operations is None:
@@ -131,7 +163,21 @@ class BaseGenerator(AbstractGenerator):
 
         self.expression = self._generate_random_expression(symbols,
                                                         self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
-                                                        max_terms, **kwargs)
+                                                        max_terms,
+                                                        use_math_constants=use_math_constants,
+                                                        max_powers=max_powers,
+                                                        real_const_decimal_places=real_const_decimal_places,
+                                                        real_constants_min=real_constants_min,
+                                                        real_constants_max=real_constants_max,
+                                                        unary_operation_probability=unary_operation_probability,
+                                                        nesting_probability=nesting_probability,
+                                                        exponent_probability=exponent_probability,
+                                                        max_depth=max_depth,
+                                                        use_epsilon=use_epsilon,
+                                                        max_const_exponent=max_const_exponent,
+                                                        epsilon=epsilon,
+                                                        kmax=kmax,
+                                                        **kwargs)
         self.expression_str = str(self.expression.rhs)
         self.expression_latex = sp.latex(self.expression)
 
@@ -143,61 +189,64 @@ class BaseGenerator(AbstractGenerator):
                                     self.expression.rhs,
                                     modules="numpy")
 
-    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
-        """
-        Generates num_realizations input values using a mixture of distributions (Uniform and Gaussian), centered around kmax random centroids with random rotations.
+    def sample_from_mixture(self, num_samples, num_dimensions, kmax=5):
+        # 1. Sample number of clusters and weights
+        k = min(self.rng.integers(1, kmax + 1), num_samples)
+        weights = self.rng.dirichlet(np.ones(k))
 
-        Args:
-            num_realizations (int): Number of data points to generate.
-            real_numbers_realizations (bool): If True, use continuous distributions.
-            kmax (int): Maximum number of clusters in the mixture.
-        """
+        # 2. Sample cluster parameters
+        centroids = self.rng.normal(0, 1, (k, num_dimensions))
+        scales = self.rng.uniform(0, 1, (k, num_dimensions))
+        distributions = self.rng.choice([self.rng.normal, self.rng.uniform], k)
+
+        # 3. Generate data for each cluster
+        data = np.zeros((num_samples, num_dimensions), dtype=np.float32)
+        samples_per_cluster = np.round(weights * num_samples).astype(int)
+        samples_per_cluster[-1] = num_samples - samples_per_cluster[:-1].sum()  # Ensures total is correct
+
+        # Check if there are any negative or zero values in samples_per_cluster
+        if np.any(samples_per_cluster <= 0):
+            # If so, switch to one sample per distribution
+            samples_per_cluster = np.ones(k, dtype=int)
+            samples_per_cluster[:num_samples] = 1
+            samples_per_cluster[num_samples:] = 0
+
+        # print(samples_per_cluster)
+
+        start = 0
+        for i in range(k):
+            end = start + samples_per_cluster[i]
+
+            if distributions[i] == self.rng.normal:
+                cluster_data = distributions[i](centroids[i], scales[i], (samples_per_cluster[i], num_dimensions))
+            else:
+                low = centroids[i] - scales[i]
+                high = centroids[i] + scales[i]
+                cluster_data = distributions[i](low, high, (samples_per_cluster[i], num_dimensions))
+                
+            if num_dimensions > 1:
+                # Apply random rotation from Haar distribution
+                rotation_matrix = self.random_orthogonal_matrix(num_dimensions)
+                cluster_data = np.dot(cluster_data, rotation_matrix)
+
+            data[start:end] = cluster_data
+            start = end
+
+        # Shuffle the data
+        self.rng.shuffle(data)
+
+        return data
+
+    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
         if not self.graph:
             raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
         num_variables = len(self.variables)
         
-        # 1. Sample number of clusters and weights
-        k = self.rng.integers(1, kmax + 1)
-        weights = self.rng.dirichlet(np.ones(k))
-
-        # 2. Sample cluster parameters
-        centroids = self.rng.normal(0, 1, (k, num_variables))
-        scales = self.rng.uniform(0.1, 2, (k, num_variables)) 
-        distributions = self.rng.choice([self.rng.normal, self.rng.uniform], k)
-        
-        # 3. Generate data for each cluster
-        x_data = np.zeros((num_realizations, num_variables), dtype=np.float32)
-        samples_per_cluster = np.round(weights * num_realizations).astype(int)
-        samples_per_cluster[-1] = num_realizations - samples_per_cluster[:-1].sum()  # Ensures total is correct
-        
-        start = 0
-        for i in range(k):
-            end = start + samples_per_cluster[i]
-            if distributions[i] == self.rng.normal:
-                cluster_data = distributions[i](centroids[i], scales[i], (samples_per_cluster[i], num_variables))
-            # uniform distribution
-            else:
-                low = centroids[i] - scales[i]
-                high = centroids[i] + scales[i]
-                cluster_data = distributions[i](low, high, (samples_per_cluster[i], num_variables))
-            
-            # Apply random rotation from Haar distribution
-            rotation_matrix = self.random_orthogonal_matrix(num_variables)
-            cluster_data = np.dot(cluster_data, rotation_matrix)
-            
-            x_data[start:end] = cluster_data
-            start = end
-        
-        # Shuffle the data
-        self.rng.shuffle(x_data)
+        x_data = self.sample_from_mixture(num_realizations, num_variables, kmax)
 
         if not real_numbers_realizations:
             x_data = np.round(x_data).astype(np.int32)
-        
-        # Scale the data to the desired interval
-        # min_val, max_val = sample_interval
-        # x_data = min_val + (max_val - min_val) * (x_data - x_data.min()) / (x_data.max() - x_data.min())
         
         self.x_data = x_data
 
