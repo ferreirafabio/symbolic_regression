@@ -158,10 +158,14 @@ class CreateDataset(object):
 
 
     def _samples2queue(self, mp_queue, num_samples):
-        for _ in range(num_samples):
-            sample = self._create_sample()
-            mp_queue.put(sample)
-        mp_queue.put('END')
+        try:
+            for _ in range(num_samples):
+                sample = self._create_sample()
+                mp_queue.put(sample)
+        except StopIteration:
+            pass
+        finally:
+            mp_queue.put('END')
 
 
 
@@ -230,9 +234,6 @@ class CreateDataset(object):
             for mp_manager in mp_manager_list:
                 mp_manager.join()
         return True
-
-
-
 
 
 

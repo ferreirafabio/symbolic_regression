@@ -11,6 +11,13 @@
 
 import re
 import sympy as sp
+import numpy as np
+import pandas as pd
+
+from yaml import load, Loader
+from sympy import Symbol, simplify, factor, Float, preorder_traversal, Integer
+from sympy.parsing.sympy_parser import parse_expr
+
 
 # Define LaTeX commands
 latex_commands = [
@@ -103,6 +110,76 @@ def format_floats_recursive(expr, decimal_places):
         return expr
     else:
         return expr.func(*[format_floats_recursive(arg, decimal_places) for arg in expr.args])
+
+def read_pmlb_files(filename, label='target', use_dataframe=True, sep=None):
+
+    if filename.endswith('gz'):
+        compression = 'gzip'
+    else:
+        compression = None
+
+    print('compression:',compression)
+    print('filename:',filename)
+
+    input_data = pd.read_csv(filename, sep=sep, compression=compression)
+
+    # clean up column names
+    clean_names = {k:k.strip().replace('.','_') for k in input_data.columns}
+    input_data = input_data.rename(columns=clean_names)
+
+    feature_names = [x for x in input_data.columns.values if x != label]
+    feature_names = np.array(feature_names)
+
+    X = input_data.drop(label, axis=1)
+    if not use_dataframe:
+        X = X.values
+    y = input_data[label].values
+
+    assert(X.shape[1] == feature_names.shape[0])
+
+    return X, y, feature_names
+
+def get_sym_model(dataset, return_str=True):
+    """return sympy model from dataset metadata"""
+    metadata = load(
+            open('/'.join(dataset.split('/')[:-1])+'/metadata.yaml','r'),
+            Loader=Loader
+    )
+    df = pd.read_csv(dataset,sep='\t')
+    features = [c for c in df.columns if c != 'target']
+    description = metadata['description'].split('\n')
+    model_str = [ms for ms in description if '=' in ms][0].split('=')[-1]
+    if return_str:
+        return model_str
+
+    local_dict = {k: Symbol(f'x{i}') for i, k in enumerate(features)}
+    local_dict['pi'] = sp.pi
+    model_sym = parse_expr(model_str,
+                           local_dict = local_dict,
+                           evaluate=True)
+    model_sym = round_floats(model_sym)
+    return model_sym
+
+def complexity(expr):
+    c=0
+    for arg in preorder_traversal(expr):
+        c += 1
+    return c
+
+def round_floats(ex1):
+    ex2 = ex1
+
+    for a in preorder_traversal(ex1):
+        if isinstance(a, Float):
+            if abs(a) < 0.0001:
+                ex2 = ex2.subs(a,Integer(0))
+            else:
+                ex2 = ex2.subs(a, Float(round(a, 3),3))
+    return ex2
+
+def rewrite_AIFeynman_model_size(model_str):
+    """AIFeynman complexity was incorrect prior to version , update it here"""
+    return complexity(parse_expr(model_str))
 
 
 if __name__ == '__main__':

@@ -81,5 +81,6 @@ dataloader:
         max_powers: 1
         seed: 1
     val_samples: 500
+    test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64
     num_workers: 8
