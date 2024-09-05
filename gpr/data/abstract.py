@@ -4,6 +4,7 @@ import torch
 import functools
 import inspect
 from abc import ABCMeta, abstractmethod
+from typing import overload
 
 
 class PrintMixin:
@@ -53,6 +54,19 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
 
         self.rng = rng
 
+    @overload
+    @abstractmethod
+    def __call__(self, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calls all method that lead to a realization."""
+        ...
+
+    @overload
+    @abstractmethod
+    def __call__(self, num_realizations: int=10, nan_threshold: float=0.1,
+                 **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calls all method that lead to a realization."""
+        ...
+
     @abstractmethod
     def __call__(self, num_variables: int=5, 
                  max_terms: int=3,
@@ -83,10 +97,25 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
             return equation
         return wrapper
 
+    @overload
+    @abstractmethod
+    def generate_equation(self, **kwargs) -> None:
+        ...
+
+    @overload
+    @abstractmethod
+    def generate_equation(self, index: int, **kwargs) -> None:
+        ...
+
     @abstractmethod
     def generate_equation(self, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         pass
+
+    @overload
+    @abstractmethod
+    def generate_data(self, num_realizations: int) -> None:
+        ...
 
     @abstractmethod
     def generate_data(self, num_realizations: int, real_numbers_realizations:

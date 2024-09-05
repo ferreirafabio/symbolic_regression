@@ -3,6 +3,7 @@ experiment:
   project_name: gpr_project
   session_name: design_model
   experiment_name: test_setup_2
+  inference_set: "valid" # or "test"
 
 
 train:
@@ -87,6 +88,7 @@ dataloader:
         seed: 1
     train_samples: 250000
     valid_samples: 10000
+    test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64
     num_workers: 8
     data_dir: "./data"

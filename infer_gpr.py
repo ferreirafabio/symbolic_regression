@@ -89,7 +89,10 @@ def main_eval(config_dict, exp_folder, checkpoint_file):
     accelerator.wait_for_everyone()
 
     logger.info(bold(f"############### SETUP DATA on rank {rank}"))
-    valid_loader = sympy_data.get_valid_loader()
+    if cfg.experiment.inference_set == 'valid':
+        valid_loader = sympy_data.get_valid_loader()
+    elif cfg.experiment.inference_set == 'test':
+        valid_loader = sympy_data.get_test_loader()
 
 
     logger.info(bold(f"############### LOAD MODEL on rank {rank}"))
