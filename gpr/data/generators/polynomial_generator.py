@@ -43,7 +43,7 @@ class PolynomialGenerator(BaseGenerator):
             term_variables = list(symbols.values())[:num_vars_in_term]
 
             # Sample coefficients for each term variable
-            coefficients = self.sample_from_mixture(num_vars_in_term, 1, kmax).flatten()
+            coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax).flatten()
             
             # print(coefficients)
             # if self.scale_constants:
@@ -64,25 +64,24 @@ class PolynomialGenerator(BaseGenerator):
                     term *= coeff * var
         
         if self.rng.random() < unary_operation_probability:
-            operation = self.sample_operation(self.filtered_operator_families)
-            term = self.apply_unary_operation(term, operation, real_const_decimal_places)
+            operation = self.sample_operation(filtered_families=self.filtered_operator_families)
+            term = self.apply_unary_operation(term=term, operation=operation, real_const_decimal_places=real_const_decimal_places)
         
         if depth < max_depth and self.rng.random() < nesting_probability:
             # print(f"nesting depth {depth}")
-            nested_term = self._generate_term(symbols, 
-                                            allowed_operations, 
-                                            use_math_constants, 
-                                            depth + 1, 
-                                            max_depth, 
-                                            kmax, 
-                                            exponent_probability, 
-                                            max_powers, 
-                                            real_const_decimal_places, 
-                                            nesting_probability,
-                                            unary_operation_probability,
-                                            )
-            term = self.compose_terms(term, nested_term)
-            term = format_floats_recursive(term, real_const_decimal_places)
+            nested_term = self._generate_term(symbols=symbols, 
+                                              allowed_operations=allowed_operations, 
+                                              use_math_constants=use_math_constants, 
+                                              depth=depth + 1, 
+                                              max_depth=max_depth, 
+                                              kmax=kmax, 
+                                              exponent_probability=exponent_probability, 
+                                              max_powers=max_powers, 
+                                              real_const_decimal_places=real_const_decimal_places, 
+                                              nesting_probability=nesting_probability,
+                                              unary_operation_probability=unary_operation_probability)
+            term = self.compose_terms(outer_term=term, inner_term=nested_term)
+            term = format_floats_recursive(expr=term, decimal_places=real_const_decimal_places)
         
         return term
 
@@ -96,7 +95,7 @@ class PolynomialGenerator(BaseGenerator):
 
         for term in terms[1:]:
             operation = random.choice(allowed_arithmetic)
-            polynomial = self.apply_arithmetic_operation(polynomial, term, operation)
+            polynomial = self.apply_arithmetic_operation(term1=polynomial, term2=term, operation=operation)
         
         return polynomial
 
@@ -162,18 +161,17 @@ class PolynomialGenerator(BaseGenerator):
             has_x_term = False
 
             for _ in range(num_terms):  
-                term = self._generate_term(symbols, 
-                                           allowed_operations, 
-                                           use_math_constants, 
-                                           depth, 
-                                           max_depth, 
-                                           kmax, 
-                                           exponent_probability, 
-                                           max_powers, 
-                                           real_const_decimal_places, 
-                                           nesting_probability,
-                                           unary_operation_probability,
-                                           )
+                term = self._generate_term(symbols=symbols, 
+                                           allowed_operations=allowed_operations, 
+                                           use_math_constants=use_math_constants, 
+                                           depth=depth, 
+                                           max_depth=max_depth, 
+                                           kmax=kmax, 
+                                           exponent_probability=exponent_probability, 
+                                           max_powers=max_powers, 
+                                           real_const_decimal_places=real_const_decimal_places, 
+                                           nesting_probability=nesting_probability,
+                                           unary_operation_probability=unary_operation_probability)
                 terms.append(term)
                 if any(sym in term.free_symbols for sym in symbols.values()):
                     has_x_term = True
@@ -181,8 +179,8 @@ class PolynomialGenerator(BaseGenerator):
             if not has_x_term:
                 continue
 
-            polynomial = self._connect_terms(terms, allowed_operations)
-            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
+            polynomial = self._connect_terms(terms=terms, allowed_operations=allowed_operations)
+            polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
             polynomial = sp.simplify(polynomial)
 
             if not polynomial.has(*symbols.values()):
@@ -193,12 +191,12 @@ class PolynomialGenerator(BaseGenerator):
 
             eq = sp.Eq(polynomial, 0)
             if isinstance(eq, sp.Equality):
-                polynomial = self.canonicalize_equation(eq)
+                polynomial = self.canonicalize_equation(eq=eq)
 
             if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                 break
 
-            polynomial = format_floats_recursive(polynomial, real_const_decimal_places)
+            polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
         return polynomial
     
