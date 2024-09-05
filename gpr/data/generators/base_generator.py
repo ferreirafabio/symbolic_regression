@@ -83,7 +83,7 @@ class BaseGenerator(AbstractGenerator):
                                 allowed_operations=allowed_operations,
                                 **kwargs)
 
-            
+
             x, y = self.evaluate_equation()
             skip, is_nan = self.check_nan_inf(y, nan_threshold)
             if skip:

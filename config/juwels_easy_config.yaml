@@ -87,6 +87,7 @@ dataloader:
         seed: 1
     train_samples: 250000
     valid_samples: 10000
+    test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64
     num_workers: 8
     data_dir: "./data"

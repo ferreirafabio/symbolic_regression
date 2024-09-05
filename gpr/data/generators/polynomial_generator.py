@@ -222,7 +222,7 @@ if __name__ == '__main__':
     }
 
     # Generate and print 5 different equations
-    for i in range(50):
+    for i in range(5):
         mantissa, exponent, expression, is_nan = generator(**params)
         print(f"Equation {i+1}: {expression} expression contains NaNs: {is_nan}")
         

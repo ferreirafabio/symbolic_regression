@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
 from gpr.data.utils import all_tokens, token_to_index
-from gpr.data.data_creator import get_base_name
+from gpr.data.data_creator import get_base_name, get_base_name_test
 
 
 # TODO multi gpu, multi node loading
@@ -162,9 +162,12 @@ class SymPySimpleDataModule(object):
     def get_data_loader(self, set_name: str):
         """return a dataloader over an finite set of training data."""
 
-        assert set_name in ['train', 'valid']
+        assert set_name in ['train', 'valid', 'test']
 
-        base_name = get_base_name(self.config, set_name)
+        if set_name in ['train', 'valid']:
+            base_name = get_base_name(self.config, set_name)
+        else:
+            base_name = get_base_name_test(self.config, 'feynman')
 
         file_name = f"{set_name}_{base_name}"
         data_dir = pathlib.Path(self.config.data_dir)
@@ -233,33 +236,65 @@ class SymPySimpleDataModule(object):
         valid_loader = self.get_data_loader(set_name='valid')
         return valid_loader
 
+    def get_test_loader(self):
+
+        test_loader = self.get_data_loader(set_name='test')
+        return test_loader
+
+
 
 if __name__ == "__main__":
+    import sys
+    from gpr.utils.configuration import Config
 
-    sympy_data = SymPySimpleDataModule(config_path='config/default_config.yaml', exp_folder='exp')
-    train_loader = sympy_data.get_train_loader()
-    valid_loader = sympy_data.get_valid_loader()
+    def bold(msg):
+        return f"\033[1m{msg}\033[0m"
 
-    print("Validation equations:")
+    config_file = os.path.join("config/default_config.yaml")
+    with open(config_file, "r") as f:
+        config_dict = yaml.load(f, Loader=yaml.Loader)
+    cfg = Config(config_dict=config_dict)
+
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        format=f"[%(asctime)s][%(levelname)s][%(name)s] - %(message)s",
+        datefmt="%d/%m/%Y %H:%M:%S",
+        level=logging.INFO,
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+
+    logger.info(bold("######################################################"))
+    logger.info(bold("########         START   EVALUATION         ##########"))
+    logger.info(bold("######################################################"))
+
+    logger.info(f"########  Project:    {cfg.experiment.project_name}")
+    logger.info(f"########  Session:    {cfg.experiment.session_name}")
+    logger.info(f"########  Experiment: {cfg.experiment.experiment_name}")
+
+    logger.info(bold("############### CONFIGURATION"))
+    cfg_dict = cfg.get_dict()
+    for k, v in cfg_dict.items():
+        logger.info(f"{k}: {v}")
+
+    sympy_data = SymPySimpleDataModule(global_config=cfg, logger=logger)
+    #train_loader = sympy_data.get_train_loader()
+    #valid_loader = sympy_data.get_valid_loader()
+    test_loader = sympy_data.get_test_loader()
+
+    print("Test equations:")
     counter = 0
-    for batch in valid_loader:
+    for batch in test_loader:
         print(f"Batch {counter} equations:")
         print(f"mantissa: {batch['mantissa'].shape}")
         print(f"exponent: {batch['exponent'].shape}")
-        print(f"latex_token: {batch['latex_token'].shape}")
+        print(f"in_equation: {batch['in_equation']}")
+        print(f"trg_equation: {batch['trg_equation']}")
         print(f"trg_len: {batch['trg_len']}")
-        for equation in batch['equation']:
-            print(equation)
+        #for equation in batch['equation']:
+            #print(equation)
         counter += 1
-        if counter == 5:
-            break
+        #if counter == 5:
+            #break
 
-    print("Training equations:")
-    counter = 0
-    for batch in train_loader:
-        print(f"Batch {counter} equations:")
-        for equation in batch['equation']:
-            print(equation)
-        counter += 1
-        if counter == 5:
-            break
