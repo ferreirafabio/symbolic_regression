@@ -97,3 +97,4 @@ dataloader:
     batch_size: 64
     num_workers: 8
     data_dir: "./data"
+    project_name: "joint_data_1"
