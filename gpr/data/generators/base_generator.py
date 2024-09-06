@@ -340,17 +340,14 @@ class BaseGenerator(AbstractGenerator):
         
         return False, is_nan
 
-
     def limit_constants(self, max_constant, min_constant):
         def replace_out_of_range_constants(x):
             if isinstance(x, sp.Number):
-                if x > max_constant:
-                    print(f"Replacing {x} with random constant between {min_constant} and {max_constant}")
-                    return self.rng.integers(min_constant, max_constant)
-                elif x < min_constant:
-                    print(f"Replacing {x} with random constant between {min_constant} and {max_constant}")
-                    return self.rng.integers(min_constant, max_constant)
-            return x # TODO replace min/max limiting with new random constant
+                if x > max_constant or x < min_constant:
+                    new_value = self.rng.integers(min_constant, max_constant)
+                    return new_value
+            return x
 
-        self.expression.xreplace({atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)}) # TODO replace does not work
+        self.expression = self.expression.xreplace(
+            {atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)})
 
