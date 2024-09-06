@@ -20,9 +20,8 @@ class PolynomialGenerator(BaseGenerator):
             }
 
 
-    def _generate_term(self,
-                       variables,
-                       symbols: dict, 
+    def _generate_term(self,variables,
+                       symbols: dict,
                        allowed_operations: list, 
                        use_math_constants: bool, 
                        depth: int, 
@@ -40,8 +39,10 @@ class PolynomialGenerator(BaseGenerator):
         if use_constant:
             term = self.rng.choice(constants)
         else:
-            num_vars_in_term = self.rng.integers(1, len(variables) + 1)
+            num_vars_in_term = self.rng.integers(1, len(symbols) + 1)# TODO picke random indecies indtead of max
             term_variables = list(symbols.values())[:num_vars_in_term]
+
+            print(symbols)
 
             # Sample coefficients for each term variable
             coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax).flatten()
@@ -101,8 +102,7 @@ class PolynomialGenerator(BaseGenerator):
         return polynomial
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, variables,
-                                    symbols: dict, 
+    def _generate_random_expression(self, variables, symbols: dict,
                                     allowed_operations: list, 
                                     max_terms: int, 
                                     use_math_constants: bool, 

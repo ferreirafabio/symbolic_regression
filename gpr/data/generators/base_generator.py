@@ -77,14 +77,18 @@ class BaseGenerator(AbstractGenerator):
             # If the keep_graph == False, generate a new graph. Do this when
             # self.graph is None too.
             # if (not keep_graph) or (self.graph is None):
+
+            num_variables = self.rng.integers(1, num_variables + 1) # TODO make distribution sampleing, shorter eq more likely
+
+
             graph, variables = self.generate_random_graph(num_variables)
             # If the keep_data == False, generate a new numpy array with shape
             # (num_realizations, len(self.variables)). Here len(self.variables) ==
             # num_nodes. Do this when self.x_data is None too.
             # if (not keep_data) or (self.x_data is None):
-            x_data = self.generate_data(variables, num_realizations=num_realizations,
-                            real_numbers_realizations=real_numbers_realizations,
-                            kmax=kmax)
+
+
+
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
@@ -101,6 +105,10 @@ class BaseGenerator(AbstractGenerator):
                                 use_epsilon=use_epsilon,
                                 max_const_exponent=max_const_exponent,
                                 **kwargs)
+
+            x_data = self.generate_data(num_variables, num_realizations=num_realizations,
+                                        real_numbers_realizations=real_numbers_realizations,
+                                        kmax=kmax)
 
             expression = self.limit_constants(expression, real_constants_max, real_constants_min)
 
@@ -255,10 +263,9 @@ class BaseGenerator(AbstractGenerator):
 
         return data
 
-    def generate_data(self, variables, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
+    def generate_data(self, num_variables, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
 
-        num_variables = len(variables)
-        
+
         x_data = self.sample_from_mixture(num_realizations, num_variables, kmax)
 
         if not real_numbers_realizations:
