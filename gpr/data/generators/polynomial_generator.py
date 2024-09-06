@@ -108,7 +108,7 @@ class PolynomialGenerator(BaseGenerator):
         
         return polynomial
 
-    def _generate_term_with_symbols(self, symbols, required_symbols, **kwargs):
+    def _generate_term_with_symbols(self, symbols, **kwargs):
         term = self._generate_term(symbols=symbols, **kwargs)
         used_symbols = set(term.free_symbols) & set(symbols.values())
         return term, used_symbols
@@ -159,7 +159,6 @@ class PolynomialGenerator(BaseGenerator):
             for symbols_for_term in symbol_combinations:
                 term, term_symbols = self._generate_term_with_symbols(
                     symbols={s.name: s for s in symbols_for_term},
-                    required_symbols=set(symbols_for_term),
                     allowed_operations=allowed_operations, 
                     use_math_constants=use_math_constants, 
                     depth=depth, 
@@ -244,7 +243,7 @@ if __name__ == '__main__':
     
     # Define the parameters for the equation generation
     params = {
-        "num_variables": 2,
+        "num_variables": 4,
         "num_realizations": 100,  # We generate one realization per loop iteration
         "max_terms": 3,
         "max_powers": 3,
@@ -258,7 +257,7 @@ if __name__ == '__main__':
         "keep_data": False,
         "use_epsilon": True,
         "max_const_exponent": 2,
-        "real_const_decimal_places": 3,
+        "real_const_decimal_places": 0,
         "constants_mean": 0.,
         "constants_var": 1.,
         "real_constants_max": 3.,
