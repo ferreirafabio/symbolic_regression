@@ -82,6 +82,7 @@ class BaseGenerator(AbstractGenerator):
 
 
             graph, variables = self.generate_random_graph(num_variables)
+            self.variables = variables
             # If the keep_data == False, generate a new numpy array with shape
             # (num_realizations, len(self.variables)). Here len(self.variables) ==
             # num_nodes. Do this when self.x_data is None too.
@@ -92,7 +93,7 @@ class BaseGenerator(AbstractGenerator):
 
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
-            equation, expression = self.generate_equation(variables, max_terms=max_terms,
+            equation, expression = self.generate_equation(max_terms=max_terms,
                                 allowed_operations=allowed_operations,
                                 max_powers=max_powers,
                                 real_const_decimal_places=real_const_decimal_places,
@@ -106,13 +107,13 @@ class BaseGenerator(AbstractGenerator):
                                 max_const_exponent=max_const_exponent,
                                 **kwargs)
 
-            x_data = self.generate_data(num_variables, num_realizations=num_realizations,
+            x_data = self.generate_data(num_realizations=num_realizations,
                                         real_numbers_realizations=real_numbers_realizations,
                                         kmax=kmax)
 
             expression = self.limit_constants(expression, real_constants_max, real_constants_min)
 
-            x, y = self.evaluate_equation(variables, equation, x_data)
+            x, y = self.evaluate_equation(equation, x_data)
 
 
 
@@ -164,7 +165,7 @@ class BaseGenerator(AbstractGenerator):
                                     list, max_terms: int, **kwargs) -> sp.Eq:
         return NotImplementedError('Need to add an expression generator')
 
-    def generate_equation(self, variables, max_terms: int, allowed_operations: list=None,
+    def generate_equation(self, max_terms: int, allowed_operations: list=None,
                          use_math_constants: bool=False,
                          max_powers: int = 2,
                          real_const_decimal_places: int = 0,
@@ -183,9 +184,9 @@ class BaseGenerator(AbstractGenerator):
         if allowed_operations is None:
             allowed_operations = ["+", "-", "*", "/", "sin", "cos", "log", "exp", "**"]
 
-        symbols = {var: sp.symbols(var) for var in variables}
+        symbols = {var: sp.symbols(var) for var in self.variables}
 
-        expression = self._generate_random_expression(variables, symbols,
+        expression = self._generate_random_expression(symbols,
                                                         self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
                                                         max_terms,
                                                         use_math_constants=use_math_constants,
@@ -263,8 +264,11 @@ class BaseGenerator(AbstractGenerator):
 
         return data
 
-    def generate_data(self, num_variables, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
+    def generate_data(self, num_realizations: int, real_numbers_realizations: bool=True, kmax: int=5) -> None:
+        # if not self.graph:
+        #     raise ValueError("Graph not initialized. Call generate_random_graph first.")
 
+        num_variables = len(self.variables)
 
         x_data = self.sample_from_mixture(num_realizations, num_variables, kmax)
 
@@ -277,7 +281,7 @@ class BaseGenerator(AbstractGenerator):
         """Generate a random orthogonal matrix from the Haar distribution."""
         return special_ortho_group.rvs(n)
 
-    def evaluate_equation(self, variables, equation, x_data) -> tuple[np.ndarray, np.ndarray]:
+    def evaluate_equation(self, equation, x_data) -> tuple[np.ndarray, np.ndarray]:
         """ This method indexes the currently generated data based on the used
         variables in the sampled equation. This way we can reuse the same data
         for multiple generated equations from the same graph, hence increasing
@@ -286,7 +290,7 @@ class BaseGenerator(AbstractGenerator):
             raise ValueError("Equation not initialized. Call generate_equation first.")
 
         # find indeces of used symbols
-        idxs = np.where(np.isin(variables, self.used_symbols))[0]
+        idxs = np.where(np.isin(self.variables, self.used_symbols))[0]
         # Apply the equation's functional mechanism
         # TODO: this can throw a RunTimeWarning on overflow, can't be caught with except?
         y_data = equation(*[x_data[:, i] for i in idxs])

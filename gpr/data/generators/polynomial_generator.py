@@ -20,7 +20,7 @@ class PolynomialGenerator(BaseGenerator):
             }
 
 
-    def _generate_term(self,variables,
+    def _generate_term(self,
                        symbols: dict,
                        allowed_operations: list, 
                        use_math_constants: bool, 
@@ -39,7 +39,7 @@ class PolynomialGenerator(BaseGenerator):
         if use_constant:
             term = self.rng.choice(constants)
         else:
-            num_vars_in_term = self.rng.integers(1, len(symbols) + 1)# TODO picke random indecies indtead of max
+            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
             term_variables = list(symbols.values())[:num_vars_in_term]
 
             print(symbols)
@@ -71,7 +71,7 @@ class PolynomialGenerator(BaseGenerator):
         
         if depth < max_depth and self.rng.random() < nesting_probability:
             # print(f"nesting depth {depth}")
-            nested_term = self._generate_term(variables=variables, symbols=symbols,
+            nested_term = self._generate_term(symbols=symbols,
                                               allowed_operations=allowed_operations, 
                                               use_math_constants=use_math_constants, 
                                               depth=depth + 1, 
@@ -82,7 +82,7 @@ class PolynomialGenerator(BaseGenerator):
                                               real_const_decimal_places=real_const_decimal_places, 
                                               nesting_probability=nesting_probability,
                                               unary_operation_probability=unary_operation_probability)
-            term = self.compose_terms(outer_term=term, inner_term=nested_term, variables=variables)
+            term = self.compose_terms(outer_term=term, inner_term=nested_term)
             term = format_floats_recursive(expr=term, decimal_places=real_const_decimal_places)
         
         return term
@@ -102,7 +102,8 @@ class PolynomialGenerator(BaseGenerator):
         return polynomial
 
     @AbstractGenerator._make_equation
-    def _generate_random_expression(self, variables, symbols: dict,
+    def _generate_random_expression(self,
+                                    symbols: dict,
                                     allowed_operations: list, 
                                     max_terms: int, 
                                     use_math_constants: bool, 
@@ -162,7 +163,7 @@ class PolynomialGenerator(BaseGenerator):
             has_x_term = False
 
             for _ in range(num_terms):  
-                term = self._generate_term(variables=variables, symbols=symbols,
+                term = self._generate_term(symbols=symbols,
                                            allowed_operations=allowed_operations, 
                                            use_math_constants=use_math_constants, 
                                            depth=depth, 
@@ -233,9 +234,9 @@ class PolynomialGenerator(BaseGenerator):
         else:
             raise ValueError(f"Unsupported arithmetic operation: {operation}")
 
-    def compose_terms(self, outer_term, inner_term, variables):
+    def compose_terms(self, outer_term, inner_term):
         # print(f"composing outer term: {outer_term} with inner term: {inner_term} with result: {outer_term.subs(self.variables[0], inner_term)}")
-        return outer_term.subs(variables[0], inner_term)
+        return outer_term.subs(self.variables[0], inner_term)
 
 if __name__ == '__main__':
     from gpr.data.utils import tokenize_latex_to_char, token_to_index
