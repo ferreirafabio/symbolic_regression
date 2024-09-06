@@ -22,19 +22,19 @@ class AbstractSignatureChecker(ABCMeta):
     https://stackoverflow.com/a/55315285
     """
     def __init__(cls, name, bases, attrs):
-        # errors = []
-        # for base_cls in bases:
-        #     for meth_name in getattr(base_cls, "__abstractmethods__", ()):
-        #         orig_argspec = inspect.getfullargspec(getattr(base_cls, meth_name))
-        #         target_argspec = inspect.getfullargspec(getattr(cls, meth_name))
-        #         if orig_argspec != target_argspec:
-        #             errors.append(
-        #                 f"Subclass `{cls.__name__}` of `{base_cls.__name__}` not implemented with correct signature "
-        #                 f"in abstract method {meth_name!r}.\n"
-        #                 f"Expected: {orig_argspec}\n"
-        #                 f"Got: {target_argspec}\n")
-        # if errors:
-        #     raise TypeError("\n".join(errors))
+        errors = []
+        for base_cls in bases:
+            for meth_name in getattr(base_cls, "__abstractmethods__", ()):
+                orig_argspec = inspect.getfullargspec(getattr(base_cls, meth_name))
+                target_argspec = inspect.getfullargspec(getattr(cls, meth_name))
+                if orig_argspec != target_argspec:
+                    errors.append(
+                        f"Subclass `{cls.__name__}` of `{base_cls.__name__}` not implemented with correct signature "
+                        f"in abstract method {meth_name!r}.\n"
+                        f"Expected: {orig_argspec}\n"
+                        f"Got: {target_argspec}\n")
+        if errors:
+            raise TypeError("\n".join(errors))
         super().__init__(name, bases, attrs)
 
 
@@ -77,6 +77,16 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                  keep_data: bool=False, 
                  nan_threshold: float=0.1, 
                  kmax: int=5,
+                 max_powers: int=3,
+                 real_const_decimal_places: int=0,
+                 real_constants_min: float=-3.,
+                 real_constants_max: float=3.,
+                 unary_operation_probability: float=0.5,
+                 nesting_probability: float=0.5,
+                 exponent_probability: float=0.1,
+                 max_depth: int=2,
+                 use_epsilon: bool=True,
+                 max_const_exponent: int=2,
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         pass
@@ -107,7 +117,21 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         ...
 
     @abstractmethod
-    def generate_equation(self, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
+    def generate_equation(self, max_terms: int, allowed_operations: list=None,
+                          use_math_constants: bool=False,
+                          max_powers: int = 2,
+                          real_const_decimal_places: int = 0,
+                          real_constants_min: float = -3.,
+                          real_constants_max: float = 3.,
+                          unary_operation_probability: float = 0.5,
+                          nesting_probability: float = 0.5,
+                          exponent_probability: float = 0.1,
+                          max_depth: int = 2,
+                          use_epsilon: bool = True,
+                          max_const_exponent: int = 2,
+                          epsilon: float = 1e-10,
+                          kmax: int = 5,
+                          **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         pass
 

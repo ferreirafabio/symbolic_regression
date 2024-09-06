@@ -57,8 +57,8 @@ class PolynomialGenerator(BaseGenerator):
             term = 1
             for var, coeff in zip(term_variables, coefficients):
                 if self.rng.random() < exponent_probability:
-                    p = np.asarray([i for i in range(2, max_powers + 1)])[::-1]
-                    exponent = self.rng.choice([i for i in range(2, max_powers + 1)], p=p/sum(p))
+                    p = np.asarray([i for i in range(2, max_powers)])[::-1]
+                    exponent = self.rng.choice([i for i in range(2, max_powers)], p=p/sum(p))
                     term *= coeff * (var ** exponent)
                 else:
                     term *= coeff * var
@@ -181,7 +181,7 @@ class PolynomialGenerator(BaseGenerator):
 
             polynomial = self._connect_terms(terms=terms, allowed_operations=allowed_operations)
             polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
-            polynomial = sp.simplify(polynomial)
+            # polynomial = sp.simplify(polynomial)
 
             if not polynomial.has(*symbols.values()):
                 continue
@@ -196,7 +196,7 @@ class PolynomialGenerator(BaseGenerator):
             if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                 break
 
-            polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
+        polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
         return polynomial
     
@@ -250,16 +250,16 @@ if __name__ == '__main__':
     
     # Define the parameters for the equation generation
     params = {
-        "num_variables": 6,
-        "num_realizations": 256,  # We generate one realization per loop iteration
-        "max_terms": 6,
+        "num_variables": 9,
+        "num_realizations": 100,  # We generate one realization per loop iteration
+        "max_terms": 50,
         "max_powers": 3,
         "use_constants": True,
         # "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         # "allowed_operations": ["+", "-", "*", "/", "exp", "sqrt", "log", 'ln', 'exp', "asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth", "abs", "sign"],
-        "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
-        # "allowed_operations": ["+", "-", "*", "/", "sin", "cos", "asin", "acos", "sqrt"],
+        # "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
+        "allowed_operations": ["+", "-", "*", "/", "sin", "cos", "asin", "acos", "sqrt"],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
@@ -268,11 +268,11 @@ if __name__ == '__main__':
         "real_constants_min": -2.,
         "real_constants_max": 2.,
         "nan_threshold": 0.5,
-        "max_depth": 4, # 0-indexed depth
-        "nesting_probability": 0.8,
-        "unary_operation_probability": 0.2,
+        "max_depth": 3, # 0-indexed depth
+        "nesting_probability": 0.0,
+        "unary_operation_probability": 0.5,
         "kmax": 5,
-        "exponent_probability": 0.1,
+        "exponent_probability": 0.5,
     }
 
     # Generate and print 5 different equations
