@@ -56,8 +56,10 @@ class BaseGenerator(AbstractGenerator):
                  keep_data: bool = False,
                  nan_threshold: float = 0.1,
                  kmax: int = 5,
-                 max_powers: int = 3,  # Changed from 2 to 3
+                 max_powers: int = 3,
                  real_const_decimal_places: int = 0,
+                 constants_mean: float = 0.,
+                 constants_var: float = 1.,
                  real_constants_min: float = -3.,
                  real_constants_max: float = 3.,
                  unary_operation_probability: float = 0.5,
@@ -97,6 +99,8 @@ class BaseGenerator(AbstractGenerator):
                                 allowed_operations=allowed_operations,
                                 max_powers=max_powers,
                                 real_const_decimal_places=real_const_decimal_places,
+                                constants_mean=constants_mean,
+                                constants_var=constants_var,
                                 real_constants_min=real_constants_min,
                                 real_constants_max=real_constants_max,
                                 unary_operation_probability=unary_operation_probability,
@@ -107,17 +111,22 @@ class BaseGenerator(AbstractGenerator):
                                 max_const_exponent=max_const_exponent,
                                 **kwargs)
 
-
-
             if (not keep_data) or (self.x_data is None):
                 self.generate_data(num_realizations=num_realizations,
                                    real_numbers_realizations=real_numbers_realizations,
                                    kmax=kmax)
 
-            self.limit_constants(real_constants_max, real_constants_min)
+            self.limit_constants(max_constant=real_constants_max, min_constant=real_constants_min)
 
             x, y = self.evaluate_equation()
-            skip, is_nan = self.check_nan_inf(y, nan_threshold)
+
+            # skip, is_nan = self.check_nan_inf(y, nan_threshold)
+
+            if np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0:
+                print("No NaN or Inf values in y.")
+                continue
+            
+            is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
             return m, e, self.expression, is_nan
@@ -154,6 +163,8 @@ class BaseGenerator(AbstractGenerator):
                          use_math_constants: bool=False,
                          max_powers: int = 2,
                          real_const_decimal_places: int = 0,
+                         constants_mean: float = 0.,
+                         constants_var: float = 1.,
                          real_constants_min: float = -3.,
                          real_constants_max: float = 3.,
                          unary_operation_probability: float = 0.5,
@@ -177,6 +188,8 @@ class BaseGenerator(AbstractGenerator):
                                                         use_math_constants=use_math_constants,
                                                         max_powers=max_powers,
                                                         real_const_decimal_places=real_const_decimal_places,
+                                                        constants_mean=constants_mean,
+                                                        constants_var=constants_var,
                                                         real_constants_min=real_constants_min,
                                                         real_constants_max=real_constants_max,
                                                         unary_operation_probability=unary_operation_probability,
@@ -199,14 +212,14 @@ class BaseGenerator(AbstractGenerator):
                                     self.expression.rhs,
                                     modules="numpy")
 
-    def sample_from_mixture(self, num_samples, num_dimensions, kmax=5):
+    def sample_from_mixture(self, num_samples, num_dimensions, mean=0., var=1., kmax=5):
         # 1. Sample number of clusters and weights
         k = min(self.rng.integers(1, kmax + 1), num_samples)
         weights = self.rng.dirichlet(np.ones(k))
 
         # 2. Sample cluster parameters
-        centroids = self.rng.normal(0, 1, (k, num_dimensions))
-        scales = self.rng.uniform(0, 1, (k, num_dimensions))
+        centroids = self.rng.normal(mean, var, (k, num_dimensions))
+        scales = self.rng.uniform(0, var, (k, num_dimensions))
         distributions = self.rng.choice([self.rng.normal, self.rng.uniform], k)
 
         # 3. Generate data for each cluster
@@ -220,8 +233,6 @@ class BaseGenerator(AbstractGenerator):
             samples_per_cluster = np.ones(k, dtype=int)
             samples_per_cluster[:num_samples] = 1
             samples_per_cluster[num_samples:] = 0
-
-        # print(samples_per_cluster)
 
         start = 0
         for i in range(k):
@@ -345,9 +356,11 @@ class BaseGenerator(AbstractGenerator):
             if isinstance(x, sp.Number):
                 if x > max_constant or x < min_constant:
                     new_value = self.rng.integers(min_constant, max_constant)
+                    print(f"replacing {x} with {new_value}") if self.verbose else None
                     return new_value
-            return x
 
+            return x
+        
         self.expression = self.expression.xreplace(
             {atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)})
 

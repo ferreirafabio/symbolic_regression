@@ -30,9 +30,12 @@ class PolynomialGenerator(BaseGenerator):
                        exponent_probability: float, 
                        max_powers: int,
                        real_const_decimal_places: int,
+                       constants_mean: float,
+                       constants_var: float,
                        nesting_probability: float,
                        unary_operation_probability: float,
                         ):
+
         constants = [sp.pi, sp.E] if use_math_constants else []
         use_constant = self.rng.choice([True, False]) if constants else False
         
@@ -42,17 +45,16 @@ class PolynomialGenerator(BaseGenerator):
             num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
             term_variables = list(symbols.values())[:num_vars_in_term]
 
-            # Sample coefficients for each term variable
-            coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax).flatten()
-            
-            # print(coefficients)
-            # if self.scale_constants:
-                # coefficients = self.real_constants_min + (self.real_constants_max - self.real_constants_min) * (coefficients - coefficients.min()) / (coefficients.max() - coefficients.min())
+            coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax, mean=constants_mean, var=constants_var).flatten()
+            # print(f"Sampled coefficients: {coefficients}")
             
             if real_const_decimal_places > 0:
                 coefficients = np.round(coefficients, real_const_decimal_places)
             else:
+                # round to integers but replace values close 0 with 1 or -1
                 coefficients = coefficients.astype(int)
+                coefficients[coefficients == 0] = self.rng.choice([1, -1])
+            # print(f"Processed coefficients: {coefficients}")
 
             term = 1
             for var, coeff in zip(term_variables, coefficients):
@@ -65,10 +67,14 @@ class PolynomialGenerator(BaseGenerator):
         
         if self.rng.random() < unary_operation_probability:
             operation = self.sample_operation(filtered_families=self.filtered_operator_families)
+            # print(f"Applying unary operation: {operation}")
             term = self.apply_unary_operation(term=term, operation=operation, real_const_decimal_places=real_const_decimal_places)
+            # print(f"Term after unary operation: {term}")
         
         if depth < max_depth and self.rng.random() < nesting_probability:
-            # print(f"nesting depth {depth}")
+            if self.verbose:
+                print(f"Nesting at depth {depth}")
+                print(f"Term before nesting: {term}")
             nested_term = self._generate_term(symbols=symbols,
                                               allowed_operations=allowed_operations, 
                                               use_math_constants=use_math_constants, 
@@ -78,10 +84,13 @@ class PolynomialGenerator(BaseGenerator):
                                               exponent_probability=exponent_probability, 
                                               max_powers=max_powers, 
                                               real_const_decimal_places=real_const_decimal_places, 
+                                              constants_mean=constants_mean,
+                                              constants_var=constants_var,
                                               nesting_probability=nesting_probability,
                                               unary_operation_probability=unary_operation_probability)
             term = self.compose_terms(outer_term=term, inner_term=nested_term)
             term = format_floats_recursive(expr=term, decimal_places=real_const_decimal_places)
+            print(f"Term after nesting: {term}") if self.verbose else None
         
         return term
 
@@ -99,6 +108,11 @@ class PolynomialGenerator(BaseGenerator):
         
         return polynomial
 
+    def _generate_term_with_symbols(self, symbols, required_symbols, **kwargs):
+        term = self._generate_term(symbols=symbols, **kwargs)
+        used_symbols = set(term.free_symbols) & set(symbols.values())
+        return term, used_symbols
+
     @AbstractGenerator._make_equation
     def _generate_random_expression(self,
                                     symbols: dict,
@@ -107,8 +121,10 @@ class PolynomialGenerator(BaseGenerator):
                                     use_math_constants: bool, 
                                     max_powers: int, 
                                     real_const_decimal_places: int, 
-                                    real_constants_min: float, 
-                                    real_constants_max: float, 
+                                    constants_mean: float, 
+                                    constants_var: float, 
+                                    real_constants_min: float,
+                                    real_constants_max: float,
                                     unary_operation_probability: float, 
                                     nesting_probability: float, 
                                     exponent_probability: float, 
@@ -118,36 +134,6 @@ class PolynomialGenerator(BaseGenerator):
                                     epsilon: float, 
                                     kmax: int, 
                                     **kwargs) -> sp.Eq:
-        """
-        Generates a random polynomial expression using the provided symbols and operations.
-
-        Parameters:
-        ----------
-        symbols : dict, A dictionary of SymPy symbols representing variables.
-        allowed_operations : list, List of operations to include: "+", "-", "*", "/", "log", "exp", "sin", "cos".
-        max_terms : int, Maximum number of terms in the polynomial.
-        max_powers : int, Maximum power for variable exponents.
-        real_const_decimal_places : int, Decimal precision for real constants.
-        real_constants_min : float, Minimum value for real constants.
-        real_constants_max : float, Maximum value for real constants.
-        unary_operation_probability : float, Probability of applying a unary operation.
-        nesting_probability : float, Probability of nesting terms.
-        exponent_probability : float, Probability of applying an exponent.
-        max_depth : int, Maximum depth of nested terms.
-        use_epsilon : bool, Whether to use epsilon in unary operations.
-        max_const_exponent : int, Maximum exponent value in scientific notation.
-        epsilon : float, Epsilon value for unary operations.
-        kmax : int, Maximum value for coefficients.
-
-        Returns:
-        -------
-        sp.Eq, A SymPy equation representing the generated polynomial.
-
-        Raises:
-        ------
-        ValueError, If any operation in `allowed_operations` is unsupported.
-        """
-        
         depth = 0
         if not all(op in self.valid_operations for op in allowed_operations):
             raise ValueError(f"allowed_operations can only contain {self.valid_operations} but you supplied {allowed_operations} where type is {type(allowed_operations)}")
@@ -155,46 +141,54 @@ class PolynomialGenerator(BaseGenerator):
         if self.filtered_operator_families is None:
             self.filtered_operator_families = self.filter_families(allowed_operations)
 
+        all_symbols = list(symbols.values())
+        num_symbols = len(all_symbols)
+
         while True:
             num_terms = self.rng.integers(1, max_terms + 1)
+            print(f"num_terms: {num_terms}") if self.verbose else None
             terms = []
-            has_x_term = False
+            used_symbols = set()
 
-            for _ in range(num_terms):  
-                term = self._generate_term(symbols=symbols,
-                                           allowed_operations=allowed_operations, 
-                                           use_math_constants=use_math_constants, 
-                                           depth=depth, 
-                                           max_depth=max_depth, 
-                                           kmax=kmax, 
-                                           exponent_probability=exponent_probability, 
-                                           max_powers=max_powers, 
-                                           real_const_decimal_places=real_const_decimal_places, 
-                                           nesting_probability=nesting_probability,
-                                           unary_operation_probability=unary_operation_probability)
+            # Precompute symbol combinations
+            symbol_combinations = [
+                self.rng.choice(all_symbols, size=self.rng.integers(1, num_symbols + 1), replace=False)
+                for _ in range(num_terms)
+            ]
+
+            for symbols_for_term in symbol_combinations:
+                term, term_symbols = self._generate_term_with_symbols(
+                    symbols={s.name: s for s in symbols_for_term},
+                    required_symbols=set(symbols_for_term),
+                    allowed_operations=allowed_operations, 
+                    use_math_constants=use_math_constants, 
+                    depth=depth, 
+                    max_depth=max_depth, 
+                    kmax=kmax, 
+                    exponent_probability=exponent_probability, 
+                    max_powers=max_powers, 
+                    real_const_decimal_places=real_const_decimal_places, 
+                    constants_mean=constants_mean,
+                    constants_var=constants_var,
+                    nesting_probability=nesting_probability,
+                    unary_operation_probability=unary_operation_probability
+                )
                 terms.append(term)
-                if any(sym in term.free_symbols for sym in symbols.values()):
-                    has_x_term = True
+                used_symbols.update(term_symbols)
 
-            if not has_x_term:
-                continue
+            if used_symbols == set(all_symbols):
+                polynomial = self._connect_terms(terms=terms, allowed_operations=allowed_operations)
+                polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
-            polynomial = self._connect_terms(terms=terms, allowed_operations=allowed_operations)
-            polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
-            # polynomial = sp.simplify(polynomial)
+                if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
+                    continue
 
-            if not polynomial.has(*symbols.values()):
-                continue
+                eq = sp.Eq(polynomial, 0)
+                if isinstance(eq, sp.Equality):
+                    polynomial = self.canonicalize_equation(eq=eq)
 
-            if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
-                continue
-
-            eq = sp.Eq(polynomial, 0)
-            if isinstance(eq, sp.Equality):
-                polynomial = self.canonicalize_equation(eq=eq)
-
-            if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
-                break
+                if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
+                    break
 
         polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
@@ -204,7 +198,7 @@ class PolynomialGenerator(BaseGenerator):
         epsilon = 1e-10 if real_const_decimal_places > 0 else 1
 
         if operation == "log":
-            return sp.log(sp.Abs(term + epsilon), 10)
+            return sp.log(sp.Abs(term + epsilon)) # base 10 results in zoo
         elif operation == "ln":
             return sp.ln(sp.Abs(term + epsilon))
         elif operation == "exp":
@@ -246,39 +240,41 @@ if __name__ == '__main__':
         """
         return ''.join(index_to_token[idx] for idx in indices)
 
-    generator = PolynomialGenerator(verbose=True)
+    generator = PolynomialGenerator(verbose=False)
     
     # Define the parameters for the equation generation
     params = {
-        "num_variables": 9,
+        "num_variables": 2,
         "num_realizations": 100,  # We generate one realization per loop iteration
-        "max_terms": 50,
+        "max_terms": 3,
         "max_powers": 3,
         "use_constants": True,
         # "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         # "allowed_operations": ["+", "-", "*", "/", "exp", "sqrt", "log", 'ln', 'exp', "asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth", "abs", "sign"],
         # "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
-        "allowed_operations": ["+", "-", "*", "/", "sin", "cos", "asin", "acos", "sqrt"],
+        "allowed_operations": ["+", "-", "*", "/", "exp", "log", "sin", "cos", "sqrt"],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
         "max_const_exponent": 2,
-        "real_const_decimal_places": 0,
-        "real_constants_min": -2.,
-        "real_constants_max": 2.,
+        "real_const_decimal_places": 3,
+        "constants_mean": 0.,
+        "constants_var": 1.,
+        "real_constants_max": 3.,
+        "real_constants_min": -3.,
         "nan_threshold": 0.5,
-        "max_depth": 3, # 0-indexed depth
-        "nesting_probability": 0.0,
-        "unary_operation_probability": 0.5,
+        "max_depth": 2, # 0-indexed depth
+        "nesting_probability": 0.3,
+        "unary_operation_probability": 0.3,
         "kmax": 5,
-        "exponent_probability": 0.5,
+        "exponent_probability": 0.8,
     }
 
     # Generate and print 5 different equations
     for i in range(50):
         mantissa, exponent, expression, is_nan = generator(**params)
-        print(f"Equation {i+1}: {expression} expression contains NaNs: {is_nan}")
+        print(f"Equation {i+1}: {expression.rhs} expression contains NaNs: {is_nan}")
         
         # def get_constants(equation):
         #     return list(equation.atoms(sp.Number))
