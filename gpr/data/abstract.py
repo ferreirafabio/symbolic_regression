@@ -107,7 +107,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
         ...
 
     @abstractmethod
-    def generate_equation(self, variables, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
+    def generate_equation(self, max_terms: int, allowed_operations: list=None, **kwargs) -> None:
         """Generates an equation that will be applied as a functional mechanism."""
         pass
 

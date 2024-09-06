@@ -42,8 +42,6 @@ class PolynomialGenerator(BaseGenerator):
             num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
             term_variables = list(symbols.values())[:num_vars_in_term]
 
-            print(symbols)
-
             # Sample coefficients for each term variable
             coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax).flatten()
             
@@ -254,7 +252,7 @@ if __name__ == '__main__':
     params = {
         "num_variables": 6,
         "num_realizations": 256,  # We generate one realization per loop iteration
-        "max_terms": 4,
+        "max_terms": 6,
         "max_powers": 3,
         "use_constants": True,
         # "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],

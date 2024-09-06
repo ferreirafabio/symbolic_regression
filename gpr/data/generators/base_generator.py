@@ -83,6 +83,7 @@ class BaseGenerator(AbstractGenerator):
 
             graph, variables = self.generate_random_graph(num_variables)
             self.variables = variables
+            self.graph = graph
             # If the keep_data == False, generate a new numpy array with shape
             # (num_realizations, len(self.variables)). Here len(self.variables) ==
             # num_nodes. Do this when self.x_data is None too.
