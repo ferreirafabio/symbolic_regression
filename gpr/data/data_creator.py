@@ -100,8 +100,10 @@ class CreateDataset(object):
         elif self.config.generator_type == 'PolynomialGenerator':
             self.generator = PolynomialGenerator(rng=self.rng)
 
-        num_cpus = mp.cpu_count()
-        workers = (num_cpus // 2) & ~1
+        # num_cpus = mp.cpu_count()
+        # workers = (num_cpus // 2) & ~1
+        workers = mp.cpu_count()
+        print(f"Using {workers} workers")
 
         data_dir = pathlib.Path(self.config.data_dir)
         os.makedirs(data_dir, exist_ok=True)
