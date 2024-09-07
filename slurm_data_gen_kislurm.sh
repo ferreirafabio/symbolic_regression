@@ -3,7 +3,6 @@
 #SBATCH -p bosch_cpu-cascadelake
 #SBATCH --cpus-per-task=32
 #SBATCH --job-name=gpr_d
-#SBATCH --bosch
 #SBATCH --time=2-00:00:00
 #SBATCH --output=/home/frankej/experiments/symreg/output/mpi-out.%j
 #SBATCH --error=/home/frankej/experiments/symreg/error/mpi-err.%j
