@@ -80,8 +80,9 @@ class BaseGenerator(AbstractGenerator):
             # self.graph is None too.
             # if (not keep_graph) or (self.graph is None):
 
-            # num_variables = self.rng.integers(1, num_variables + 1) # TODO make distribution sampleing, shorter eq more likely
-            num_variables = num_variables
+            num_variables = self.rng.integers(1, num_variables + 1)
+            # p = np.asarray([i for i in range(1, num_variables+1)])[::-1]
+            # num_variables = self.rng.choice([i for i in range(1, num_variables+1)], p=p / sum(p))
 
             if (not keep_graph) or (self.graph is None):
                 self.generate_random_graph(num_variables)
@@ -116,7 +117,12 @@ class BaseGenerator(AbstractGenerator):
                                    real_numbers_realizations=real_numbers_realizations,
                                    kmax=kmax)
 
+
+
             self.limit_constants(max_constant=real_constants_max, min_constant=real_constants_min)
+
+            if not "x" in  str(self.expression.rhs):
+                continue
 
             x, y = self.evaluate_equation()
 

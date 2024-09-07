@@ -2,8 +2,8 @@
 dataloader:
     generator_type: PolynomialGenerator
     generator:
-        num_variables: 4
-        max_terms: 4
+        num_variables: 10
+        max_terms: 8
         num_realizations: 256
         allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp", "ln", "sin", "cos", "tan", "tanh", "sinh", "cosh"]
         real_const_decimal_places: 3

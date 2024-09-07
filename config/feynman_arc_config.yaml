@@ -3,7 +3,7 @@ dataloader:
     generator_type: PolynomialGenerator
     generator:
         num_variables: 6
-        max_terms: 4
+        max_terms: 8
         num_realizations: 256
         allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp", "ln", "acos", "asin"]
         real_const_decimal_places: 0
@@ -21,7 +21,7 @@ dataloader:
         nesting_probability: 0.8
         unary_operation_probability: 0.2
         exponent_probability: 0.1
-    train_samples: 10000
+    train_samples: 1000000
     valid_samples: 1000
     test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64

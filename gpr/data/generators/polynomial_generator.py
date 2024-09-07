@@ -245,7 +245,7 @@ if __name__ == '__main__':
     params = {
         "num_variables": 4,
         "num_realizations": 100,  # We generate one realization per loop iteration
-        "max_terms": 3,
+        "max_terms": 5,
         "max_powers": 3,
         "use_constants": True,
         # "allowed_operations": ["+", "-", "*", "/", "exp", "cos", "sin", "log", "ln", "sqrt"],
