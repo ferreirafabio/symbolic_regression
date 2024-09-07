@@ -14,5 +14,5 @@ source /home/frankej/workspace/ScalingSymbolicRegression/venv/bin/activate
 
 PYTHON_SCRIPT=/home/frankej/workspace/ScalingSymbolicRegression/gpr/data/data_creator.py
 
-srun --bosch python $PYTHON_SCRIPT -f $@
+srun python $PYTHON_SCRIPT -f $@
 
