@@ -121,6 +121,9 @@ class BaseGenerator(AbstractGenerator):
 
             self.limit_constants(max_constant=real_constants_max, min_constant=real_constants_min)
 
+            if self.expression == False:
+                continue
+
             if not "x" in  str(self.expression.rhs):
                 continue
 
