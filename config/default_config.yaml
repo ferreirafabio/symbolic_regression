@@ -44,7 +44,7 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    max_var_pos: 9
+    max_var_pos: 10
     model_dim: 128
     max_len: 500
     num_head: 2

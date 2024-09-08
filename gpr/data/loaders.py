@@ -20,7 +20,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 from gpr.data.utils import all_tokens, token_to_index
 from gpr.data.data_creator import get_base_name
-from gpr.data.test_data_creator import get_base_name_test
+from gpr.data.feynman_data_creator import get_base_name_test
 
 # TODO multi gpu, multi node loading
 # TODO samller realization as in data arraw file

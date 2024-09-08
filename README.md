@@ -67,6 +67,7 @@ Plots are saved by default in `plots/`. You can access the generated expressions
 ## Test datasets
 For testing we use the curated datasets from the SRBench, that contains 130 datasets from two sources: Feynman Symbolic Regression Database, and the ODE-Strogatz repository. When pulling or cloning the repository use `--recurse-submodules`, e.g.:
 ```bash
+git clone https://github.com/EpistasisLab/pmlb.git
 git pull --recurse-submodules
 cd pmlb
 git lfs pull

@@ -90,7 +90,7 @@ class CreateFeynmanDataset(CreateDataset):
 if __name__ == "__main__":
     """
     example usage:
-    python gpr/data/test_data_creator.py.py -c data_config -f
+    python gpr/data/feynman_data_creator.py -c data_config -f
     """
     import argparse
     import socket
