@@ -8,7 +8,7 @@ experiment:
 train:
   seed: 1
   clip_value: 0.1
-  val_interval: 5000
+  val_interval: 1000
   log_interval: 500
   log_param_interval: 500
   save_interval: 10000
