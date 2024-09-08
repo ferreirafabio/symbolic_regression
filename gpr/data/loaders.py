@@ -260,14 +260,18 @@ class SymPySimpleDataModule(object):
             dataset_size = []
             for file_dir in arrow_files:
                 self.logger.info(f"Loading file: {file_dir}")
-                mmap = pa.memory_map(file_dir)
-                self.logger.info("MMAP Read ALL")
-                dataset = pa.ipc.open_file(mmap)
-                datasets.append(dataset)
+                try:
+                    mmap = pa.memory_map(file_dir)
+                    self.logger.info("MMAP Read ALL")
+                    dataset = pa.ipc.open_file(mmap)
+                    datasets.append(dataset)
 
-                file_samples = dataset.num_record_batches
-                self.logger.info(f"Number of samples in {file_dir}: {file_samples}")
-                dataset_size.append(file_samples)
+                    file_samples = dataset.num_record_batches
+                    self.logger.info(f"Number of samples in {file_dir}: {file_samples}")
+                    dataset_size.append(file_samples)
+                except:
+                    self.logger.error(f"Error loading file: {file_dir}")
+                    continue
 
             self.logger.info(f"DataLoader for {set_name} successfully loaded from {file_dir}.")
 
