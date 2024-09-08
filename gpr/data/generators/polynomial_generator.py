@@ -59,8 +59,8 @@ class PolynomialGenerator(BaseGenerator):
             term = 1
             for var, coeff in zip(term_variables, coefficients):
                 if self.rng.random() < exponent_probability:
-                    p = np.asarray([i for i in range(2, max_powers)])[::-1]
-                    exponent = self.rng.choice([i for i in range(2, max_powers)], p=p/sum(p))
+                    p = np.asarray([i for i in range(2, max_powers+1)])[::-1]
+                    exponent = self.rng.choice([i for i in range(2, max_powers+1)], p=p/sum(p))
                     term *= coeff * (var ** exponent)
                 else:
                     term *= coeff * var
