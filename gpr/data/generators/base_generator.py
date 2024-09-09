@@ -75,7 +75,8 @@ class BaseGenerator(AbstractGenerator):
         # graph.
         assert keep_graph or (not keep_data), "Cannot reuse the same data if the graph changes."
 
-        while True:
+        max_try = 10
+        for _ in range(max_try):
             # If the keep_graph == False, generate a new graph. Do this when
             # self.graph is None too.
             # if (not keep_graph) or (self.graph is None):
@@ -139,6 +140,7 @@ class BaseGenerator(AbstractGenerator):
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
             return m, e, self.expression, is_nan
+        return None
 
     def generate_random_graph(self, num_variables: int) -> None:
         """Generates a random graph."""
@@ -218,7 +220,7 @@ class BaseGenerator(AbstractGenerator):
             [str(var) for var in self.expression.rhs.free_symbols], key=lambda x: int(x[1:])
         )
         self.equation = sp.lambdify([symbols[var] for var in self.used_symbols],
-                                    self.expression.rhs,
+                                    self.expression.rhs, docstring_limit=1000, # TODO make this a parameter
                                     modules="numpy")
 
     def sample_from_mixture(self, num_samples, num_dimensions, mean=0., var=1., kmax=5):

@@ -17,30 +17,29 @@ srun -p bosch_cpu-cascadelake --nodes=1 --time=1:00:00 --cpus-per-task=32 --bosc
 
 
 
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.train_samples=10000000 dataloader.valid_samples=10000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.train_samples=10000000 dataloader.valid_samples=10000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.train_samples=10000000 dataloader.valid_samples=10000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000 dataloader.valid_samples=10000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000 dataloader.valid_samples=10000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=1 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000 dataloader.valid_samples=10000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
+sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.generator.real_constants_min=0 dataloader.project_name="joint_data_f3" dataloader.train_samples=10000000
 
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config   dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=2 dataloader.train_samples=10000000
-
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=3 dataloader.train_samples=10000000
-
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=4 dataloader.train_samples=10000000
-
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_arc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_float_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.train_samples=10000000
-sbatch --bosch --time=10:00:00 slurm_data_gen_kislurm.sh --no_valid -c feynman_noarc_config dataloader.data_dir="/home/frankej/workspace/gpr_data"  dataloader.generator.seed=5 dataloader.train_samples=10000000
-
+dataloader.project_name="joint_data_f2"
 
 python gpr/data/test_data_creator.py -c feynman_arc_config -f dataloader.data_dir="/home/frankej/workspace/gpr_data"
 
 /home/frankej/workspace/ScalingSymbolicRegression/gpr_data/joint_data_f1
 
 
-rsync -auv --progress /mhome/frankej/workspace/gpr_data/joint_data_f1 -e 'ssh -A franke5@jureca.fz-juelich.de' :/p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/
+rsync -auv --progress /mhome/frankej/workspace/gpr_data/joint_data_f2 -e 'ssh -A franke5@jureca.fz-juelich.de' :/p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/
+
+cp /p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/joint_data_f1/test_feynman_v1.arrow /p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/joint_data_f2/

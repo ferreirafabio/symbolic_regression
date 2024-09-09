@@ -192,7 +192,7 @@ class PolynomialGenerator(BaseGenerator):
         polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
         return polynomial
-    
+
     def apply_unary_operation(self, term, operation, real_const_decimal_places):
         epsilon = 1e-10 if real_const_decimal_places > 0 else 1
 

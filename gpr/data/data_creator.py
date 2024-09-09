@@ -14,6 +14,7 @@ import yaml
 import random
 import logging
 
+from joblib.testing import timeout
 from torch.onnx.symbolic_opset11 import chunk
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
@@ -147,7 +148,8 @@ class CreateDataset(object):
 
     def _create_sample(self):
         mantissa, exponent, expression, is_nan = self.generator(**self.config.generator)
-        mantissa = torch.round(mantissa * 10**self.config.generator.real_const_decimal_places) / 10**self.config.generator.real_const_decimal_places
+        if mantissa is None:
+            return None
         mantissa, exponent = mantissa.to(torch.float16), exponent.to(torch.int8)
         latex_expression = sp.latex(expression)
         latex_token_indices = tokenize_latex_to_char(latex_expression)
@@ -163,8 +165,9 @@ class CreateDataset(object):
                 mp_queue.put(sample)
         except StopIteration:
             pass
-        finally:
-            mp_queue.put('END')
+        # finally:
+        #     mp_queue.put('END')
+        mp_queue.put('END')
 
 
 
@@ -177,11 +180,13 @@ class CreateDataset(object):
                     end_counter = 0
                     with tqdm(total=total_samples, desc=f"Writing {dataset_type} dataset", unit="samples") as pbar:
                         while True:
-                            sample = mp_queue.get()
+                            sample = mp_queue.get(timeout=10)
                             if sample == 'END':
                                 end_counter += 1
                                 if end_counter == workers:
                                     break
+                            elif sample is None:
+                                continue
                             else:
                                 mantissa_batch, exponent_batch, token_tensor_batch, is_nan_batch = sample
 

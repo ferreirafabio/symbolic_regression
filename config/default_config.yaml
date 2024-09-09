@@ -44,7 +44,7 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    max_var_pos: 3
+    max_var_pos: 10
     model_dim: 128
     max_len: 500
     num_head: 2
@@ -76,7 +76,7 @@ dataloader:
         num_realizations: 128
         allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp"]
         real_const_decimal_places: 0
-        real_constants_min: -10
+        real_constants_min: 0
         real_constants_max: 10
         max_const_exponent: 0
         use_math_constants: False
@@ -84,7 +84,7 @@ dataloader:
         keep_graph: False
         keep_data: False
         max_powers: 2
-        seed: 1
+        seed: 3
         nan_threshold: 0.1
         max_depth: 3
         nesting_probability: 0.5

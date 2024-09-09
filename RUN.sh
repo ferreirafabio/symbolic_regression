@@ -144,6 +144,7 @@ optim.lr=0.00031"
 sbatch --nodes=1 --account=projectnucleus --partition=booster --time=15:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_3
 experiment.experiment_name=setup_rel100_s40k_lr3e-4
 dataloader.generator.num_realizations=100
+dataloader.project_name=joint_data_f1
 dataloader.batch_size=64
 model.activation=silu
 train.max_steps=40000
@@ -194,3 +195,18 @@ optim.cpr_config.kappa_init_param=1000
 optim.lr=0.00031"
 
 
+####################
+
+
+sbatch --nodes=1 --account=projectnucleus --partition=booster --time=15:00:00 slurm_launch_easy.sh "experiment.session_name=first_hpo_4
+experiment.experiment_name=setup_rel128_s20k_lr3e-4
+dataloader.generator.num_realizations=128
+dataloader.project_name=joint_data_f1
+dataloader.batch_size=64
+model.activation=silu
+model.max_var_pos=11
+model.max_len=800
+train.max_steps=20000
+optim.lr=0.00031"
+
+python train_gpr.py experiment.session_name=first_hpo_3 experiment.experiment_name=test_data model.max_var_pos=11 model.max_len=800 dataloader.generator.num_realizations=128 dataloader.project_name=joint_data_f2 dataloader.batch_size=64 model.activation=silu train.max_steps=40000 optim.lr=0.00031

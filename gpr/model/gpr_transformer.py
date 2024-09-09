@@ -16,8 +16,8 @@ class GPRTransformer(nn.Module):
         max_var_pos = config.max_var_pos
         self.var_embed = nn.Linear(config.model_dim, config.model_dim, bias=False) # TODO 4 = mun_var + 1
 
-        pe = torch.zeros(max_var_pos, config.model_dim)
-        position = torch.arange(0, max_var_pos).unsqueeze(1).type(torch.FloatTensor)
+        pe = torch.zeros(max_var_pos+1, config.model_dim)
+        position = torch.arange(0, max_var_pos+1).unsqueeze(1).type(torch.FloatTensor)
         div_term = torch.exp(
             torch.arange(0, config.model_dim, 2).type(torch.FloatTensor) * -(math.log(10000.0) / config.model_dim))
         pe[:, 0::2] = torch.sin(position * div_term)

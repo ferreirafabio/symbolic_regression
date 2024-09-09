@@ -104,9 +104,9 @@ def main(config_dict):
     test_loader = sympy_data.get_test_loader()
     # local_rank=accelerator.local_process_index
 
-    logger.info(f"Train loader: {len(train_loader)} batches")
-    logger.info(f"Valid loader: {len(valid_loader)} batches")
-    logger.info(f"Test loader: {len(test_loader)} batches")
+    logger.info(f"Train loader: {train_loader.dataset.__len__()} samples, {len(train_loader)} batches")
+    logger.info(f"Valid loader: {valid_loader.dataset.__len__()} samples, {len(valid_loader)} batches")
+    logger.info(f"Test loader: {test_loader.dataset.__len__()} samples, {len(test_loader)} batches")
 
 
 
@@ -175,110 +175,8 @@ def main(config_dict):
 
                 # autoregressive_evaluation(model, step,"valid", valid_loader, sympy_data, cfg, accelerator, device,
                 #                           logger)
-                autoregressive_evaluation(model, step,"feynman", test_loader, sympy_data, cfg, accelerator, device, logger)
+                # autoregressive_evaluation(model, step,"feynman", test_loader, sympy_data, cfg, accelerator, device, logger)
 
-                # model.eval()
-                # with torch.no_grad():
-                #     acc_loss = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_num_batches = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_accuracy = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_solved = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_log_probs = torch.tensor(0, device=device, dtype=torch.float)
-                #
-                #     acc_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_valid_equation = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_samples = torch.tensor(0, device=device, dtype=torch.float)
-                #     acc_tokens = torch.tensor(0, device=device, dtype=torch.float)
-                #     val_pred_true_equation_mse = torch.tensor(0, device=device, dtype=torch.float)
-                #
-                #     for val_batch in valid_dl:
-                #         val_batch = sympy_data.batch_to_device(val_batch, device)
-                #         with accelerator.autocast():
-                #             logits = model(val_batch['mantissa'],
-                #                            val_batch['exponent'],
-                #                            val_batch['in_equation'])
-                #             val_loss = loss_func(logits.view(-1, logits.size(-1)), val_batch['trg_equation'].view(-1))
-                #
-                #
-                #         sample_count = val_batch['trg_len'].size(0)
-                #         token_count = torch.sum(val_batch['trg_len'], dtype=torch.float)
-                #
-                #         log_probs = val_loss * token_count
-                #         predicted_tokens = logits.argmax(dim=-1)
-                #         # logger.info(f"logits shape: {logits.shape}")
-                #         # logger.info(f"predicted_tokens shape: {predicted_tokens.shape}")
-                #         # logger.info(f"trq_seq shape: {trg_seq.shape}")
-                #         # logger.info(f"predicted_tokens view shape: {predicted_tokens.view(-1).shape}")
-                #         # logger.info(f"trq_seq view: {trg_seq.view(-1).shape}")
-                #
-                #         correct_tokens = predicted_tokens == val_batch['trg_equation']
-                #         ignore_mask = val_batch['trg_equation'] != sympy_data.ignore_index
-                #
-                #         batch_accuracy = torch.sum(correct_tokens & ignore_mask, dim=-1) / val_batch['trg_len']
-                #         batch_solved = torch.sum(batch_accuracy == 1.0)
-                #
-                #         acc_loss += val_loss
-                #         acc_log_probs += log_probs
-                #         acc_accuracy += torch.sum(batch_accuracy)
-                #         acc_solved += torch.sum(batch_solved)
-                #
-                #         acc_tokens += token_count
-                #         acc_samples += sample_count
-                #         acc_num_batches += 1
-                #
-                #         # compute MSE between predicted and true equation of the current val batch
-                #         # true_strs = sympy_data.indices_to_string(val_batch['trg_equation'])
-                #         # pred_strs = sympy_data.indices_to_string(predicted_tokens)
-                #         #
-                #         # batch_sum_mse, batch_sum_valid_eq = sympy_data.compute_mse(pred_strs, true_strs)
-                #         # acc_equation_mse += batch_sum_mse
-                #         # acc_valid_equation += batch_sum_valid_eq
-                #
-                #     gathered_val_loss = accelerator.gather(acc_loss)
-                #     gathered_num_batches = accelerator.gather(acc_num_batches)
-                #     gathered_acc_log_probs = accelerator.gather(acc_log_probs)
-                #     gathered_acc_accuracy = accelerator.gather(acc_accuracy)
-                #     gathered_acc_solved = accelerator.gather(acc_solved)
-                #     # gathered_mse = accelerator.gather(acc_equation_mse)
-                #     # gathered_valid = accelerator.gather(acc_valid_equation)
-                #     gathered_acc_samples = accelerator.gather(acc_samples)
-                #     gathered_acc_tokens = accelerator.gather(acc_tokens)
-                #
-                #     if is_rank_zero:
-                #
-                #         acc_loss = torch.sum(gathered_val_loss)
-                #         num_batches = torch.sum(gathered_num_batches)
-                #         acc_log_probs = torch.sum(gathered_acc_log_probs)
-                #         acc_accuracy = torch.sum(gathered_acc_accuracy)
-                #         acc_solved = torch.sum(gathered_acc_solved)
-                #         # acc_mse = torch.sum(gathered_mse)
-                #         # acc_valid = torch.sum(gathered_valid)
-                #         acc_samples = torch.sum(gathered_acc_samples)
-                #         acc_tokens = torch.sum(gathered_acc_tokens)
-                #
-                #         mean_val_loss = acc_loss / num_batches
-                #         ppl = torch.exp(acc_log_probs / acc_tokens)
-                #         accuracy = acc_accuracy / acc_samples
-                #         solved = acc_solved / acc_samples
-                #         # mean_mse = acc_mse / acc_samples
-                #         # valid = acc_valid / acc_samples
-                #
-                #         logger.info(
-                #             f"Validation at step {step} - Mean Loss: {mean_val_loss.item():.4f}"
-                #             f" - Mean PPL: {ppl.item():.4f}"
-                #             f" - Mean Acc: {accuracy.item():.4f}"
-                #             f" - Mean Solved: {solved.item():.4f}"
-                #             # f" - Mean MSE: {mean_mse.item():.4f}"
-                #             # f" - Mean Valid: {valid.item():.4f}"
-                #             f" - Samples: {int(acc_samples.item())}"
-                #         )
-                #         tb_logger.add_scalar(f"valid/loss", mean_val_loss.item(), step)
-                #         tb_logger.add_scalar(f"valid/ppl", ppl.item(), step)
-                #         tb_logger.add_scalar("valid/solved", solved.item(), step)
-                #         tb_logger.add_scalar(f"valid/accuracy", accuracy.item(), step)
-                #         # tb_logger.add_scalar(f"valid/mse", mean_mse.item(), step)
-                #         # tb_logger.add_scalar(f"valid/valid_eqs", valid.item(), step)
-                #         tb_logger.flush()
                 model.train()
 
             train_batch = sympy_data.batch_to_device(train_batch, device)
