@@ -14,7 +14,6 @@ import yaml
 import random
 import logging
 
-from joblib.testing import timeout
 from torch.onnx.symbolic_opset11 import chunk
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
