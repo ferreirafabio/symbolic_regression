@@ -3,7 +3,7 @@ dataloader:
     generator_type: PolynomialGenerator
     generator:
         num_variables: 6
-        max_terms: 8
+        max_terms: 6
         num_realizations: 256
         allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp", "ln", "acos", "asin"]
         real_const_decimal_places: 0

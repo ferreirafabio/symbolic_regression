@@ -209,4 +209,4 @@ model.max_len=800
 train.max_steps=20000
 optim.lr=0.00031"
 
-python train_gpr.py experiment.session_name=first_hpo_3 experiment.experiment_name=test_data model.max_var_pos=11 model.max_len=800 dataloader.generator.num_realizations=128 dataloader.project_name=joint_data_f2 dataloader.batch_size=64 model.activation=silu train.max_steps=40000 optim.lr=0.00031
+python train_gpr.py experiment.session_name=first_hpo_3 experiment.experiment_name=test_data model.max_var_pos=11 model.max_len=1000 dataloader.generator.num_realizations=128 dataloader.project_name=joint_data_f3 dataloader.batch_size=64 model.activation=silu train.max_steps=40000 optim.lr=0.00031

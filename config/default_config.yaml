@@ -44,7 +44,7 @@ accelerate:
 model:
     trg_vocab_size: 1
     seq_vocab_size: 1
-    max_var_pos: 10
+    max_var_pos: 11
     model_dim: 128
     max_len: 500
     num_head: 2
@@ -74,7 +74,7 @@ dataloader:
         num_variables: 3
         max_terms: 3
         num_realizations: 128
-        allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp"]
+        allowed_operations: ["+", "-", "*", "/", "log", "sqrt", "exp", "sin", "cos"]
         real_const_decimal_places: 0
         real_constants_min: 0
         real_constants_max: 10
@@ -90,7 +90,7 @@ dataloader:
         nesting_probability: 0.5
         unary_operation_probability: 0.5
         exponent_probability: 0.3
-    train_samples: 100000
+    train_samples: 10000
     valid_samples: 1000
     test_samples: 200 # this is just a placeholder for the test set
     batch_size: 64

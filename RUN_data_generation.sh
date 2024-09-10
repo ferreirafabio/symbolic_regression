@@ -40,6 +40,6 @@ python gpr/data/test_data_creator.py -c feynman_arc_config -f dataloader.data_di
 /home/frankej/workspace/ScalingSymbolicRegression/gpr_data/joint_data_f1
 
 
-rsync -auv --progress /mhome/frankej/workspace/gpr_data/joint_data_f2 -e 'ssh -A franke5@jureca.fz-juelich.de' :/p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/
+rsync -auv --progress /mhome/frankej/workspace/gpr_data/joint_data_f3 -e 'ssh -A franke5@jureca.fz-juelich.de' :/p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/
 
 cp /p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/joint_data_f1/test_feynman_v1.arrow /p/project/projectnucleus/franke5/ScalingSymbolicRegression/data/joint_data_f2/
