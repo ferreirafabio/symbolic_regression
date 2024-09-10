@@ -113,8 +113,11 @@ class BaseGenerator(AbstractGenerator):
                                 max_const_exponent=max_const_exponent,
                                 **kwargs)
 
+            realizations_tolerance = int(num_realizations * 0.1)
+            num_realizations_plus = num_realizations + realizations_tolerance
+
             if (not keep_data) or (self.x_data is None):
-                self.generate_data(num_realizations=num_realizations,
+                self.generate_data(num_realizations=num_realizations_plus,
                                    real_numbers_realizations=real_numbers_realizations,
                                    kmax=kmax)
 
@@ -130,12 +133,22 @@ class BaseGenerator(AbstractGenerator):
 
             x, y = self.evaluate_equation()
 
-            # skip, is_nan = self.check_nan_inf(y, nan_threshold)
+            nan_sum = np.sum(np.isnan(y) | np.isinf(y))
 
-            if np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0:
+            if nan_sum >= realizations_tolerance:
                 print("NaN or Inf values in y.")
                 continue
-            
+
+            if  np.sum(np.isnan(y)) > 0:
+                x = x[~np.isnan(y), :]
+                y = y[~np.isnan(y)]
+
+            if  np.sum(np.isinf(y)) > 0:
+                x = x[~np.isinf(y), :]
+                y = y[~np.isinf(y)]
+
+            x, y = x[:num_realizations, :], y[:num_realizations]
+
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
