@@ -4,7 +4,8 @@ import numpy as np
 from gpr.data.abstract import AbstractGenerator
 from gpr.data.generators.base_generator import BaseGenerator
 from gpr.data.utils import format_floats_recursive
-
+import yaml
+import os
 
 class PolynomialGenerator(BaseGenerator):
 
@@ -150,7 +151,6 @@ class PolynomialGenerator(BaseGenerator):
             terms = []
             used_symbols = set()
 
-            # Precompute symbol combinations
             symbol_combinations = [
                 self.rng.choice(all_symbols, size=self.rng.integers(1, num_symbols + 1), replace=False)
                 for _ in range(num_terms)
@@ -182,12 +182,16 @@ class PolynomialGenerator(BaseGenerator):
                 if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
                     continue
 
-                eq = sp.Eq(polynomial, 0)
-                if isinstance(eq, sp.Equality):
-                    polynomial = self.canonicalize_equation(eq=eq)
+                # eq = sp.Eq(polynomial, 0)
+                # if isinstance(eq, sp.Equality):
+                #     polynomial = self.canonicalize_equation(eq=eq)
 
                 if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                     break
+
+                # no variables in the polynomial
+                if not any(symbol in polynomial.free_symbols for symbol in all_symbols):
+                    continue
 
         polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
@@ -195,7 +199,7 @@ class PolynomialGenerator(BaseGenerator):
 
     def apply_unary_operation(self, term, operation, real_const_decimal_places):
         epsilon = 1e-10 if real_const_decimal_places > 0 else 1
-
+        
         if operation == "log":
             return sp.log(sp.Abs(term + epsilon)) # base 10 results in zoo
         elif operation == "ln":
@@ -252,7 +256,8 @@ if __name__ == '__main__':
         # "allowed_operations": ["+", "-", "*", "/", 'log', 'ln', 'exp', "sin", "cos", "tan", "cot","cosh","tanh","coth", 'sqrt', 'abs', 'sign'],
         # "allowed_operations": ["+", "-", "*", "/", "exp", "sqrt", "log", 'ln', 'exp', "asin", "acos", "atan", "acot", "asinh", "acosh", "atanh", "acoth", "sin", "cos", "tan", "cot", "sinh", "cosh", "tanh", "coth", "abs", "sign"],
         # "allowed_operations": ["+", "-", "*", "/", "log", "sin", "cos", "tan", "exp"],
-        "allowed_operations": ["+", "-", "*", "/", "exp", "log", "sin", "cos", "sqrt"],
+        # "allowed_operations": ["+", "-", "*", "/", "exp", "log", "sin", "cos", "sqrt"],
+        "allowed_operations": ["+", "-", "*", "/", "sqrt", "asin", "acos"],
         "keep_graph": False,
         "keep_data": False,
         "use_epsilon": True,
@@ -269,6 +274,14 @@ if __name__ == '__main__':
         "kmax": 5,
         "exponent_probability": 0.8,
     }
+
+    # config_path = 'config/feynman_arc_config.yaml'  
+    with open(config_path, 'r') as config_file:
+        config = yaml.safe_load(config_file)
+
+    # Extract parameters from the config
+    params = config['dataloader']['generator']
+    print(params)
 
     # Generate and print 5 different equations
     for i in range(50):

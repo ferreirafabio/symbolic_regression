@@ -133,7 +133,7 @@ class BaseGenerator(AbstractGenerator):
             # skip, is_nan = self.check_nan_inf(y, nan_threshold)
 
             if np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0:
-                print("No NaN or Inf values in y.")
+                print("NaN or Inf values in y.")
                 continue
             
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
@@ -286,6 +286,23 @@ class BaseGenerator(AbstractGenerator):
         """Generate a random orthogonal matrix from the Haar distribution."""
         return special_ortho_group.rvs(n)
 
+    @staticmethod
+    def clip_x_data(x_data, operation_ranges, expression):
+        clipped_x_data = x_data.copy()
+        
+        limited_ranges = {
+            (-1, 1): ["asin", "arcsin", "acos", "arccos", "atanh", "arctanh"],
+            (0, np.inf): ["sqrt", "log", "ln"],
+            (1, np.inf): ["acosh", "arccosh"]
+        }
+        
+        for range_, ops in limited_ranges.items():
+            if any(op in str(expression) for op in ops):
+                for i in range(clipped_x_data.shape[1]):
+                    clipped_x_data[:, i] = np.clip(clipped_x_data[:, i], range_[0], range_[1])
+        
+        return clipped_x_data
+
     def evaluate_equation(self) -> tuple[np.ndarray, np.ndarray]:
         """ This method indexes the currently generated data based on the used
         variables in the sampled equation. This way we can reuse the same data
@@ -296,6 +313,11 @@ class BaseGenerator(AbstractGenerator):
 
         # find indeces of used symbols
         idxs = np.where(np.isin(self.variables, self.used_symbols))[0]
+        x_data_slice = self.x_data[:, idxs]
+        
+        clipped_x_data = self.clip_x_data(x_data_slice, self.operation_families, self.expression)
+        self.x_data[:, idxs] = clipped_x_data
+        
         # Apply the equation's functional mechanism
         # TODO: this can throw a RunTimeWarning on overflow, can't be caught with except?
         y_data = self.equation(*[self.x_data[:, i] for i in idxs])
