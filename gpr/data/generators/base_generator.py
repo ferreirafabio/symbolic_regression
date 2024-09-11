@@ -433,7 +433,7 @@ class BaseGenerator(AbstractGenerator):
         return sum(ordered_terms)
 
     @staticmethod
-    def _contains_only_constants(expr):
+    def contains_only_constants(expr):
         """
         Check if the expression contains only constants (numbers or mathematical constants).
         """

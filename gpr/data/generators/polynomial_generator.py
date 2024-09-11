@@ -210,7 +210,7 @@ class PolynomialGenerator(BaseGenerator):
     def apply_unary_operation(self, term, operation, real_const_decimal_places):
         epsilon = 1e-10 if real_const_decimal_places > 0 else 1
         
-        if self._contains_only_constants(term):
+        if self.contains_only_constants(term):
             return term  # Don't apply unary operations to constant terms
 
         if operation == "log":
