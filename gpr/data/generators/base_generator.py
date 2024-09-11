@@ -330,15 +330,15 @@ class BaseGenerator(AbstractGenerator):
 
         # find indeces of used symbols
         idxs = np.where(np.isin(self.variables, self.used_symbols))[0]
+        # print(f"idxs: {idxs}, variables: {self.variables}, used_symbols: {self.used_symbols}")
         x_data_slice = self.x_data[:, idxs]
+        # print(f"x_data_slice shape: {x_data_slice.shape}")
         
         clipped_x_data = self.clip_x_data(x_data_slice, self.operation_families, self.expression)
         self.x_data[:, idxs] = clipped_x_data
         
         # Apply the equation's functional mechanism
-        # TODO: this can throw a RunTimeWarning on overflow, can't be caught with except?
         y_data = self.equation(*[self.x_data[:, i] for i in idxs])
-        #y_data = self.equation(*[self.x_data[:, i] for i in range(len(self.variables))])
         self.y_data = y_data
 
         return self.x_data[:, idxs], y_data
