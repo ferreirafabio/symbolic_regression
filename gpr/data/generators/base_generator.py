@@ -54,7 +54,6 @@ class BaseGenerator(AbstractGenerator):
                  allowed_operations: list = None,
                  keep_graph: bool = True,
                  keep_data: bool = False,
-                 nan_threshold: float = 0.1,
                  kmax: int = 5,
                  max_powers: int = 3,
                  real_const_decimal_places: int = 0,
@@ -65,6 +64,7 @@ class BaseGenerator(AbstractGenerator):
                  unary_operation_probability: float = 0.5,
                  nesting_probability: float = 0.5,
                  exponent_probability: float = 0.1,
+                 constant_probability: float = 0.1,
                  max_depth: int = 2,
                  use_epsilon: bool = True,
                  max_const_exponent: int = 2,
@@ -76,7 +76,7 @@ class BaseGenerator(AbstractGenerator):
         assert keep_graph or (not keep_data), "Cannot reuse the same data if the graph changes."
 
         max_try = 10
-        for _ in range(max_try):
+        for i in range(max_try):
             # If the keep_graph == False, generate a new graph. Do this when
             # self.graph is None too.
             # if (not keep_graph) or (self.graph is None):
@@ -93,8 +93,6 @@ class BaseGenerator(AbstractGenerator):
             # if (not keep_data) or (self.x_data is None):
 
 
-
-
             # generate an equation with max_terms < num_nodes and evaluate the
             # equation on the generated data.
             self.generate_equation(max_terms=max_terms,
@@ -108,6 +106,7 @@ class BaseGenerator(AbstractGenerator):
                                 unary_operation_probability=unary_operation_probability,
                                 nesting_probability=nesting_probability,
                                 exponent_probability=exponent_probability,
+                                constant_probability=constant_probability,
                                 max_depth=max_depth,
                                 use_epsilon=use_epsilon,
                                 max_const_exponent=max_const_exponent,
@@ -122,22 +121,18 @@ class BaseGenerator(AbstractGenerator):
                                    kmax=kmax)
 
 
-
             self.limit_constants(max_constant=real_constants_max, min_constant=real_constants_min)
 
-            if self.expression == False:
-                continue
-
-            if not "x" in  str(self.expression.rhs):
+            if self.expression == False or not self.contains_variables(self.expression, self.variables):
                 continue
 
             x, y = self.evaluate_equation()
 
-            nan_sum = np.sum(np.isnan(y) | np.isinf(y))
+            nan_sum_y = np.sum(np.isnan(y) | np.isinf(y))
 
             nan_sum_x = np.sum(np.isnan(x) | np.isinf(x))
 
-            if nan_sum >= realizations_tolerance or nan_sum_x > 0:
+            if nan_sum_y > realizations_tolerance or nan_sum_x > 0:
                 print("NaN or Inf values in y or x.")
                 continue
 
@@ -150,12 +145,13 @@ class BaseGenerator(AbstractGenerator):
                 y = y[~np.isinf(y)]
 
             x, y = x[:num_realizations, :], y[:num_realizations]
+            
 
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
 
-            if len(sp.latex(self.expression)) > 800: # TODO make this a parameter / check if it's necessary
+            if len(self.expression_latex) > 800: # TODO make this a parameter / check if it's necessary
                 continue
 
             return m, e, self.expression, is_nan
@@ -200,6 +196,7 @@ class BaseGenerator(AbstractGenerator):
                          unary_operation_probability: float = 0.5,
                          nesting_probability: float = 0.5,
                          exponent_probability: float = 0.1,
+                         constant_probability: float = 0.1,
                          max_depth: int = 2,
                          use_epsilon: bool = True,
                          max_const_exponent: int = 2,
@@ -225,6 +222,7 @@ class BaseGenerator(AbstractGenerator):
                                                         unary_operation_probability=unary_operation_probability,
                                                         nesting_probability=nesting_probability,
                                                         exponent_probability=exponent_probability,
+                                                        constant_probability=constant_probability,
                                                         max_depth=max_depth,
                                                         use_epsilon=use_epsilon,
                                                         max_const_exponent=max_const_exponent,
@@ -355,6 +353,53 @@ class BaseGenerator(AbstractGenerator):
 
         return mantissa, exponent
 
+    def check_nan_inf(self, y: np.ndarray, nan_threshold: float) -> tuple[bool, torch.Tensor]:
+        y = np.where(np.isinf(y), np.finfo(np.float16).max, y)
+        nan_inf_count = np.isnan(y).sum() + np.isinf(y).sum()
+        nan_inf_ratio = nan_inf_count / len(y)
+        is_nan = torch.tensor([nan_inf_count > 0])
+        
+        if self.verbose:
+            print(f"NaN/Inf ratio in y: {nan_inf_ratio}")
+        
+        if nan_inf_ratio > nan_threshold:
+            if self.verbose:
+                print("Skipping equation due to too many NaN/Inf values.")
+            return True, is_nan
+        
+        return False, is_nan
+
+    def limit_constants(self, max_constant, min_constant):
+        def replace_out_of_range_constants(x):
+            if isinstance(x, sp.Number):
+                if x > max_constant or x < min_constant:
+                    new_value = self.rng.integers(min_constant, max_constant)
+                    print(f"replacing {x} with {new_value}") if self.verbose else None
+                    return new_value
+
+            return x
+        
+        self.expression = self.expression.xreplace(
+            {atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)})
+
+
+    @staticmethod
+    def contains_variables(expression, variables):
+        if isinstance(expression, sp.Eq):
+            expression = expression.rhs
+        symbol_set = set(sp.Symbol(str(s)) for s in variables)
+        expr_symbols = expression.free_symbols
+        return bool(symbol_set.intersection(expr_symbols))
+    
+    @staticmethod
+    def is_valid_expression(expression):
+        if isinstance(expression, sp.Eq):
+            expression = expression.rhs
+    
+        if expression == 0 or any(obj in expression.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
+            return False
+        return True
+
     @staticmethod
     def visualize_data(x_data: np.ndarray, y_data: np.ndarray) -> None:
         """Visualizes the relationships between the input variables and the output."""
@@ -387,32 +432,11 @@ class BaseGenerator(AbstractGenerator):
         ordered_terms = simplified_exp.as_ordered_terms()
         return sum(ordered_terms)
 
-    def check_nan_inf(self, y: np.ndarray, nan_threshold: float) -> tuple[bool, torch.Tensor]:
-        y = np.where(np.isinf(y), np.finfo(np.float16).max, y)
-        nan_inf_count = np.isnan(y).sum() + np.isinf(y).sum()
-        nan_inf_ratio = nan_inf_count / len(y)
-        is_nan = torch.tensor([nan_inf_count > 0])
-        
-        if self.verbose:
-            print(f"NaN/Inf ratio in y: {nan_inf_ratio}")
-        
-        if nan_inf_ratio > nan_threshold:
-            if self.verbose:
-                print("Skipping equation due to too many NaN/Inf values.")
-            return True, is_nan
-        
-        return False, is_nan
-
-    def limit_constants(self, max_constant, min_constant):
-        def replace_out_of_range_constants(x):
-            if isinstance(x, sp.Number):
-                if x > max_constant or x < min_constant:
-                    new_value = self.rng.integers(min_constant, max_constant)
-                    print(f"replacing {x} with {new_value}") if self.verbose else None
-                    return new_value
-
-            return x
-        
-        self.expression = self.expression.xreplace(
-            {atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)})
-
+    @staticmethod
+    def _contains_only_constants(expr):
+        """
+        Check if the expression contains only constants (numbers or mathematical constants).
+        """
+        # for atom in expr.atoms():
+        #     print(f"atom: {atom}, is constant: {atom.is_constant()}")
+        return all(atom.is_constant() for atom in expr.atoms())

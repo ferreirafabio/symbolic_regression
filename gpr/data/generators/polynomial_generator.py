@@ -29,6 +29,7 @@ class PolynomialGenerator(BaseGenerator):
                        max_depth: int, 
                        kmax: int, 
                        exponent_probability: float, 
+                       constant_probability: float,
                        max_powers: int,
                        real_const_decimal_places: int,
                        constants_mean: float,
@@ -38,34 +39,39 @@ class PolynomialGenerator(BaseGenerator):
                         ):
 
         constants = [sp.pi, sp.E] if use_math_constants else []
-        use_constant = self.rng.choice([True, False]) if constants else False
         
-        if use_constant:
-            term = self.rng.choice(constants)
+        num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
+        term_variables = list(symbols.values())[:num_vars_in_term]
+
+        coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax, mean=constants_mean, var=constants_var).flatten()
+        
+        if real_const_decimal_places > 0:
+            coefficients = np.round(coefficients, real_const_decimal_places)
         else:
-            num_vars_in_term = self.rng.integers(1, len(self.variables) + 1)
-            term_variables = list(symbols.values())[:num_vars_in_term]
+            coefficients = coefficients.astype(int)
+            coefficients[coefficients == 0] = self.rng.choice([1, -1])
 
-            coefficients = self.sample_from_mixture(num_samples=num_vars_in_term, num_dimensions=1, kmax=kmax, mean=constants_mean, var=constants_var).flatten()
-            # print(f"Sampled coefficients: {coefficients}")
-            
-            if real_const_decimal_places > 0:
-                coefficients = np.round(coefficients, real_const_decimal_places)
+        term = 1
+        for var, coeff in zip(term_variables, coefficients):
+            if constants and self.rng.random() < constant_probability: 
+                constant = self.rng.choice(constants)
+                term *= constant * coeff * var
             else:
-                # round to integers but replace values close 0 with 1 or -1
-                coefficients = coefficients.astype(int)
-                coefficients[coefficients == 0] = self.rng.choice([1, -1])
-            # print(f"Processed coefficients: {coefficients}")
-
-            term = 1
-            for var, coeff in zip(term_variables, coefficients):
                 if self.rng.random() < exponent_probability:
                     p = np.asarray([i for i in range(2, max_powers+1)])[::-1]
                     exponent = self.rng.choice([i for i in range(2, max_powers+1)], p=p/sum(p))
                     term *= coeff * (var ** exponent)
                 else:
                     term *= coeff * var
-        
+
+
+        # # Check if the term contains only constants
+        if self._contains_only_constants(term):
+            # If it does, multiply it by a random variable
+            print(f"contains only constants: {term}")
+            var = self.rng.choice(term_variables)
+            term *= var
+
         if self.rng.random() < unary_operation_probability:
             operation = self.sample_operation(filtered_families=self.filtered_operator_families)
             # print(f"Applying unary operation: {operation}")
@@ -83,6 +89,7 @@ class PolynomialGenerator(BaseGenerator):
                                               max_depth=max_depth, 
                                               kmax=kmax, 
                                               exponent_probability=exponent_probability, 
+                                              constant_probability=constant_probability,
                                               max_powers=max_powers, 
                                               real_const_decimal_places=real_const_decimal_places, 
                                               constants_mean=constants_mean,
@@ -128,7 +135,8 @@ class PolynomialGenerator(BaseGenerator):
                                     real_constants_max: float,
                                     unary_operation_probability: float, 
                                     nesting_probability: float, 
-                                    exponent_probability: float, 
+                                    exponent_probability: float,
+                                    constant_probability: float, 
                                     max_depth: int, 
                                     use_epsilon: bool, 
                                     max_const_exponent: int, 
@@ -165,6 +173,7 @@ class PolynomialGenerator(BaseGenerator):
                     max_depth=max_depth, 
                     kmax=kmax, 
                     exponent_probability=exponent_probability, 
+                    constant_probability=constant_probability,
                     max_powers=max_powers, 
                     real_const_decimal_places=real_const_decimal_places, 
                     constants_mean=constants_mean,
@@ -179,27 +188,31 @@ class PolynomialGenerator(BaseGenerator):
                 polynomial = self._connect_terms(terms=terms, allowed_operations=allowed_operations)
                 polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
-                if polynomial == 0 or any(obj in polynomial.atoms() for obj in [sp.zoo, sp.oo, sp.nan, sp.S.ComplexInfinity]):
+                if not self.is_valid_expression(polynomial):
                     continue
 
-                # eq = sp.Eq(polynomial, 0)
-                # if isinstance(eq, sp.Equality):
-                #     polynomial = self.canonicalize_equation(eq=eq)
+                eq = sp.Eq(polynomial, 0)
+                if isinstance(eq, sp.Equality):
+                    polynomial = self.canonicalize_equation(eq=eq)
 
                 if polynomial != 0 and polynomial != sp.S.false and polynomial != sp.S.true:
                     break
 
-                # no variables in the polynomial
-                if not any(symbol in polynomial.free_symbols for symbol in all_symbols):
+                if not self.contains_variables(polynomial, all_symbols):
                     continue
 
         polynomial = format_floats_recursive(expr=polynomial, decimal_places=real_const_decimal_places)
 
         return polynomial
 
+
+
     def apply_unary_operation(self, term, operation, real_const_decimal_places):
         epsilon = 1e-10 if real_const_decimal_places > 0 else 1
         
+        if self._contains_only_constants(term):
+            return term  # Don't apply unary operations to constant terms
+
         if operation == "log":
             return sp.log(sp.Abs(term + epsilon)) # base 10 results in zoo
         elif operation == "ln":
@@ -267,15 +280,15 @@ if __name__ == '__main__':
         "constants_var": 1.,
         "real_constants_max": 3.,
         "real_constants_min": -3.,
-        "nan_threshold": 0.5,
         "max_depth": 2, # 0-indexed depth
         "nesting_probability": 0.3,
         "unary_operation_probability": 0.3,
         "kmax": 5,
         "exponent_probability": 0.8,
+        "constant_probability": 0.1,
     }
 
-    # config_path = 'config/feynman_arc_config.yaml'  
+    config_path = 'config/feynman_arc_config.yaml'  
     with open(config_path, 'r') as config_file:
         config = yaml.safe_load(config_file)
 

@@ -62,7 +62,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
 
     @overload
     @abstractmethod
-    def __call__(self, num_realizations: int=10, nan_threshold: float=0.1,
+    def __call__(self, num_realizations: int=10, 
                  **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         """Calls all method that lead to a realization."""
         ...
@@ -75,7 +75,6 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                  allowed_operations: list=None, 
                  keep_graph: bool=True,
                  keep_data: bool=False, 
-                 nan_threshold: float=0.1, 
                  kmax: int=5,
                  max_powers: int=3,
                  real_const_decimal_places: int=0,
@@ -86,6 +85,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                  unary_operation_probability: float=0.5,
                  nesting_probability: float=0.5,
                  exponent_probability: float=0.1,
+                 constant_probability: float=0.1,
                  max_depth: int=2,
                  use_epsilon: bool=True,
                  max_const_exponent: int=2,
@@ -130,6 +130,7 @@ class AbstractGenerator(PrintMixin, metaclass=AbstractSignatureChecker):
                           unary_operation_probability: float = 0.5,
                           nesting_probability: float = 0.5,
                           exponent_probability: float = 0.1,
+                          constant_probability: float = 0.1,
                           max_depth: int = 2,
                           use_epsilon: bool = True,
                           max_const_exponent: int = 2,
