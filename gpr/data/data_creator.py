@@ -146,11 +146,10 @@ class CreateDataset(object):
 
 
     def _create_sample(self):
-        mantissa, exponent, expression, is_nan = self.generator(**self.config.generator)
+        mantissa, exponent, latex_expression, is_nan = self.generator(**self.config.generator)
         if mantissa is None:
             return None
         mantissa, exponent = mantissa.to(torch.float16), exponent.to(torch.int8)
-        latex_expression = sp.latex(expression)
         latex_token_indices = tokenize_latex_to_char(latex_expression)
         token_tensor = torch.tensor(latex_token_indices, dtype=torch.uint8)
         sample = [mantissa.numpy(), exponent.numpy(), token_tensor.numpy(), is_nan.numpy()]

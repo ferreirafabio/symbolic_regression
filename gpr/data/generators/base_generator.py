@@ -152,7 +152,13 @@ class BaseGenerator(AbstractGenerator):
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
-            return m, e, self.expression, is_nan
+
+            latex_expression = sp.latex(expression)
+
+            if len(latex_expression) > 800: # TODO make this a parameter / check if it's necessary
+                continue
+
+            return m, e, latex_expression, is_nan
         return None
 
     def generate_random_graph(self, num_variables: int) -> None:
