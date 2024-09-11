@@ -135,8 +135,10 @@ class BaseGenerator(AbstractGenerator):
 
             nan_sum = np.sum(np.isnan(y) | np.isinf(y))
 
-            if nan_sum >= realizations_tolerance:
-                print("NaN or Inf values in y.")
+            nan_sum_x = np.sum(np.isnan(x) | np.isinf(x))
+
+            if nan_sum >= realizations_tolerance or nan_sum_x > 0:
+                print("NaN or Inf values in y or x.")
                 continue
 
             if  np.sum(np.isnan(y)) > 0:
@@ -153,12 +155,10 @@ class BaseGenerator(AbstractGenerator):
 
             m, e = BaseGenerator.get_mantissa_exp(x, y)
 
-            latex_expression = sp.latex(expression)
-
-            if len(latex_expression) > 800: # TODO make this a parameter / check if it's necessary
+            if len(sp.latex(self.expression)) > 800: # TODO make this a parameter / check if it's necessary
                 continue
 
-            return m, e, latex_expression, is_nan
+            return m, e, self.expression, is_nan
         return None
 
     def generate_random_graph(self, num_variables: int) -> None:
