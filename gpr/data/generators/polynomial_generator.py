@@ -66,7 +66,7 @@ class PolynomialGenerator(BaseGenerator):
 
 
         # # Check if the term contains only constants
-        if self._contains_only_constants(term):
+        if self.contains_only_constants(term):
             # If it does, multiply it by a random variable
             print(f"contains only constants: {term}")
             var = self.rng.choice(term_variables)
