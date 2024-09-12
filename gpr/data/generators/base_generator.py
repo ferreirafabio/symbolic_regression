@@ -28,6 +28,19 @@ class BaseGenerator(AbstractGenerator):
             "Miscellaneous": ["sqrt", "abs", "sign", "^"]
         }
 
+        self.arithmetic_probabilities = {
+            "+": 0.2,
+            "-": 0.2,
+            "*": 0.2,
+            "/": 0.4
+        }
+
+        self.limited_ranges = {
+            (-1, 1): ["asin", "arcsin", "acos", "arccos", "atanh", "arctanh"],
+            (0, np.inf): ["sqrt", "log", "ln"],
+            (1, np.inf): ["acosh", "arccosh"]
+        }
+
     def filter_families(self, allowed_operations):
         filtered_families = {}
         for family, ops in self.operation_families.items():
@@ -120,13 +133,18 @@ class BaseGenerator(AbstractGenerator):
                                    real_numbers_realizations=real_numbers_realizations,
                                    kmax=kmax)
 
-
             self.limit_constants(max_constant=real_constants_max, min_constant=real_constants_min)
+            self.limit_exponents(max_exponent=max_powers, min_exponent=1)
 
-            if self.expression == False or not self.contains_variables(self.expression, self.variables):
-                continue
+            self.equation = sp.lambdify([self.symbols[var] for var in self.used_symbols],
+                            self.expression.rhs, docstring_limit=1000, # TODO make this a parameter
+                            modules="numpy")
 
             x, y = self.evaluate_equation()
+
+            # TODO make 800 a parameter / check if it's necessary
+            if self.expression == False or not self.contains_variables(self.expression, self.variables) or len(self.expression_latex) > 800:
+                continue
 
             nan_sum_y = np.sum(np.isnan(y) | np.isinf(y))
 
@@ -144,17 +162,12 @@ class BaseGenerator(AbstractGenerator):
                 x = x[~np.isinf(y), :]
                 y = y[~np.isinf(y)]
 
+
             x, y = x[:num_realizations, :], y[:num_realizations]
-            
-
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
-
             m, e = BaseGenerator.get_mantissa_exp(x, y)
-
-            if len(self.expression_latex) > 800: # TODO make this a parameter / check if it's necessary
-                continue
-
             return m, e, self.expression, is_nan
+            
         return None
 
     def generate_random_graph(self, num_variables: int) -> None:
@@ -207,9 +220,9 @@ class BaseGenerator(AbstractGenerator):
         if allowed_operations is None:
             allowed_operations = ["+", "-", "*", "/", "sin", "cos", "log", "exp", "**"]
 
-        symbols = {var: sp.symbols(var) for var in self.variables}
+        self.symbols = {var: sp.symbols(var) for var in self.variables}
 
-        self.expression = self._generate_random_expression(symbols,
+        self.expression = self._generate_random_expression(self.symbols,
                                                         self.allowed_operations if hasattr(self, 'allowed_operations') else allowed_operations,
                                                         max_terms,
                                                         use_math_constants=use_math_constants,
@@ -231,14 +244,7 @@ class BaseGenerator(AbstractGenerator):
                                                         **kwargs)
         self.expression_str = str(self.expression.rhs)
         self.expression_latex = sp.latex(self.expression)
-
-        #self.used_symbols = {str(var): var for var in self.expression.rhs.free_symbols}
-        self.used_symbols = sorted(
-            [str(var) for var in self.expression.rhs.free_symbols], key=lambda x: int(x[1:])
-        )
-        self.equation = sp.lambdify([symbols[var] for var in self.used_symbols],
-                                    self.expression.rhs, docstring_limit=1000, # TODO make this a parameter
-                                    modules="numpy")
+        self.used_symbols = sorted([str(var) for var in self.expression.rhs.free_symbols], key=lambda x: int(x[1:]))
 
     def sample_from_mixture(self, num_samples, num_dimensions, mean=0., var=1., kmax=5):
         # 1. Sample number of clusters and weights
@@ -303,17 +309,10 @@ class BaseGenerator(AbstractGenerator):
         """Generate a random orthogonal matrix from the Haar distribution."""
         return special_ortho_group.rvs(n)
 
-    @staticmethod
-    def clip_x_data(x_data, operation_ranges, expression):
+    def clip_x_data(self, x_data, operation_ranges, expression):
         clipped_x_data = x_data.copy()
-        
-        limited_ranges = {
-            (-1, 1): ["asin", "arcsin", "acos", "arccos", "atanh", "arctanh"],
-            (0, np.inf): ["sqrt", "log", "ln"],
-            (1, np.inf): ["acosh", "arccosh"]
-        }
-        
-        for range_, ops in limited_ranges.items():
+    
+        for range_, ops in self.limited_ranges.items():
             if any(op in str(expression) for op in ops):
                 for i in range(clipped_x_data.shape[1]):
                     clipped_x_data[:, i] = np.clip(clipped_x_data[:, i], range_[0], range_[1])
@@ -376,12 +375,25 @@ class BaseGenerator(AbstractGenerator):
                     new_value = self.rng.integers(min_constant, max_constant)
                     print(f"replacing {x} with {new_value}") if self.verbose else None
                     return new_value
-
             return x
         
         self.expression = self.expression.xreplace(
             {atom: replace_out_of_range_constants(atom) for atom in self.expression.atoms(sp.Number)})
 
+    def limit_exponents(self, max_exponent, min_exponent):
+        def replace_out_of_range_exponents(x):
+            if isinstance(x, sp.Pow):
+                base, exp = x.as_base_exp()
+                if isinstance(exp, sp.Number):
+                    if exp > max_exponent or exp < min_exponent:
+                        new_exp = self.rng.integers(min_exponent, max_exponent + 1)
+                        print(f"replacing exponent {exp} with {new_exp} (base: {base})") if self.verbose else None
+                        return base ** new_exp
+            return x
+        print(f"expression before limiting exponents: {self.expression}") if self.verbose else None
+        self.expression = self.expression.xreplace(
+            {atom: replace_out_of_range_exponents(atom) for atom in self.expression.atoms(sp.Pow)})
+        print(f"expression after limiting exponents: {self.expression}") if self.verbose else None
 
     @staticmethod
     def contains_variables(expression, variables):

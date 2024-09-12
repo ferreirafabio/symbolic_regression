@@ -96,9 +96,20 @@ class PolynomialGenerator(BaseGenerator):
                                               constants_var=constants_var,
                                               nesting_probability=nesting_probability,
                                               unary_operation_probability=unary_operation_probability)
-            term = self.compose_terms(outer_term=term, inner_term=nested_term)
+
+            inverse_trig_hyp = set(self.operation_families["Inverse Trigonometric"] + 
+                                   self.operation_families["Hyperbolic"] + 
+                                   self.operation_families["Inverse Hyperbolic"])
+
+            # Check if nested_term contains any limited range operations
+            if not any(op in str(term) for op in inverse_trig_hyp):
+                term = self.compose_terms(outer_term=term, inner_term=nested_term)
+                print(f"Term after nesting: {term}") if self.verbose else None
+            else:
+                print(f"Skipping composing due to limited range operation in term {term}.") if self.verbose else None
+                term = self._connect_terms([term, nested_term], allowed_operations)
+                print(f"Connected terms instead, result: {term}.") if self.verbose else None
             term = format_floats_recursive(expr=term, decimal_places=real_const_decimal_places)
-            print(f"Term after nesting: {term}") if self.verbose else None
         
         return term
 
@@ -110,8 +121,14 @@ class PolynomialGenerator(BaseGenerator):
         arithmetic_operations = self.operation_families["Arithmetic"]
         allowed_arithmetic = [op for op in arithmetic_operations if op in allowed_operations]
 
+        # Create a list of probabilities for the allowed operations
+        probabilities = [self.arithmetic_probabilities[op] for op in allowed_arithmetic]
+        # Normalize the probabilities
+        total_prob = sum(probabilities)
+        normalized_probabilities = [p / total_prob for p in probabilities]
+
         for term in terms[1:]:
-            operation = random.choice(allowed_arithmetic)
+            operation = random.choices(allowed_arithmetic, weights=normalized_probabilities, k=1)[0]
             polynomial = self.apply_arithmetic_operation(term1=polynomial, term2=term, operation=operation)
         
         return polynomial

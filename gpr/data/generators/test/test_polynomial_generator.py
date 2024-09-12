@@ -36,12 +36,12 @@ def test_polynomial_generator(config, total_equations=50):
                 operation_family_counts[family] += 1
 
         variables = list(expression.rhs.free_symbols)
-        print(f"Before lambdification: {expression.rhs}")
+        # print(f"Before lambdification: {expression.rhs}")
         
         try:
             lambda_func = sp.lambdify(variables, expression.rhs, modules=['numpy', 'sympy'])
             # print(f"After lambdification: {lambda_func}")
-            print("Lambdification successful")
+            # print("Lambdification successful")
         except Exception as e:
             print(f"Lambdification failed: {str(e)}")
             lambdify_error_count += 1
