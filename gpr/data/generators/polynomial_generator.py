@@ -74,9 +74,15 @@ class PolynomialGenerator(BaseGenerator):
 
         if self.rng.random() < unary_operation_probability:
             operation = self.sample_operation(filtered_families=self.filtered_operator_families)
-            # print(f"Applying unary operation: {operation}")
-            term = self.apply_unary_operation(term=term, operation=operation, real_const_decimal_places=real_const_decimal_places)
-            # print(f"Term after unary operation: {term}")
+            # Check if the operation is in limited_range_trigonometric and if the term contains mathematical constants
+            if operation in self.limited_range_trigonometric and any(str(constant) in str(term) for constant in [sp.pi, sp.E]):
+                # Skip applying the operation
+                if self.verbose:
+                    print(f"Skipping {operation} due to mathematical constants in term: {term}")
+            else:
+                term = self.apply_unary_operation(term=term, operation=operation, real_const_decimal_places=real_const_decimal_places)
+                if self.verbose:
+                    print(f"Term after unary operation: {term}")
         
         if depth < max_depth and self.rng.random() < nesting_probability:
             if self.verbose:
@@ -97,12 +103,10 @@ class PolynomialGenerator(BaseGenerator):
                                               nesting_probability=nesting_probability,
                                               unary_operation_probability=unary_operation_probability)
 
-            inverse_trig_hyp = set(self.operation_families["Inverse Trigonometric"] + 
-                                   self.operation_families["Hyperbolic"] + 
-                                   self.operation_families["Inverse Hyperbolic"])
+
 
             # Check if nested_term contains any limited range operations
-            if not any(op in str(term) for op in inverse_trig_hyp):
+            if not any(op in str(term) for op in self.limited_range_trigonometric):
                 term = self.compose_terms(outer_term=term, inner_term=nested_term)
                 print(f"Term after nesting: {term}") if self.verbose else None
             else:

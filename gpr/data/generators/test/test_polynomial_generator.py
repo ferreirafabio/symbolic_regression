@@ -117,4 +117,4 @@ if __name__ == "__main__":
     with open(config_path, 'r') as config_file:
         config = yaml.safe_load(config_file)
     
-    test_polynomial_generator(config=config, total_equations=50)
+    test_polynomial_generator(config=config, total_equations=200)

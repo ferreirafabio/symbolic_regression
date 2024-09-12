@@ -28,6 +28,8 @@ class BaseGenerator(AbstractGenerator):
             "Miscellaneous": ["sqrt", "abs", "sign", "^"]
         }
 
+        self.limited_range_trigonometric = ["asin", "arcsin", "acos", "arccos", "atanh", "arctanh"]
+
         self.arithmetic_probabilities = {
             "+": 0.2,
             "-": 0.2,
@@ -167,7 +169,7 @@ class BaseGenerator(AbstractGenerator):
             is_nan = torch.tensor([np.isnan(y).sum() != 0 or np.isinf(y).sum() != 0])
             m, e = BaseGenerator.get_mantissa_exp(x, y)
             return m, e, self.expression, is_nan
-            
+
         return None
 
     def generate_random_graph(self, num_variables: int) -> None:
