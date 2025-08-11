@@ -1,0 +1,69 @@
+!!python/object/new:gpr.utils.configuration.SimpleNestedNamespace
+dictitems:
+  batch_size: 64
+  data_dir: ./data
+  generator:
+    allowed_operations: &id001
+    - +
+    - '-'
+    - '*'
+    - /
+    keep_data: false
+    keep_graph: false
+    max_const_exponent: 2
+    max_powers: 2
+    max_terms: 3
+    num_realizations: 100
+    num_variables: 3
+    real_const_decimal_places: 2
+    real_constants_max: 10
+    real_constants_min: -10
+    sample_interval: &id002
+    - -10
+    - 10
+    seed: 1
+    use_math_constants: false
+  generator_type: PolynomialGenerator
+  num_realizations: 100
+  num_workers: 8
+  train_samples: 100
+  valid_samples: 100
+state:
+  batch_size: 64
+  data_dir: ./data
+  generator: !!python/object/new:gpr.utils.configuration.SimpleNestedNamespace
+    dictitems:
+      allowed_operations: *id001
+      keep_data: false
+      keep_graph: false
+      max_const_exponent: 2
+      max_powers: 2
+      max_terms: 3
+      num_realizations: 100
+      num_variables: 3
+      real_const_decimal_places: 2
+      real_constants_max: 10
+      real_constants_min: -10
+      sample_interval: *id002
+      seed: 1
+      use_math_constants: false
+    state:
+      allowed_operations: *id001
+      keep_data: false
+      keep_graph: false
+      max_const_exponent: 2
+      max_powers: 2
+      max_terms: 3
+      num_realizations: 100
+      num_variables: 3
+      real_const_decimal_places: 2
+      real_constants_max: 10
+      real_constants_min: -10
+      sample_interval: *id002
+      seed: 1
+      use_math_constants: false
+  generator_type: PolynomialGenerator
+  num_realizations: 100
+  num_workers: 8
+  train_samples: 100
+  valid_samples: 100

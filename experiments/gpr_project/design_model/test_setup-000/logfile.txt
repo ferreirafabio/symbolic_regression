@@ -1,0 +1,17 @@
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - #### Load logger on rank 0
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - ########  Accelerate: world size 1 - rank 0
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - [1m######################################################[0m
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - [1m########          START   TRAINING          ##########[0m
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - [1m######################################################[0m
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - ########  Project:    gpr_project
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - ########  Session:    design_model
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - ########  Experiment: test_setup
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - save logs and checkpoints in: /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup-000
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - [1m############### CONFIGURATION[0m
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - experiment: {'experiments_base_dir': '/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments', 'project_name': 'gpr_project', 'session_name': 'design_model', 'experiment_name': 'test_setup'}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - train: {'seed': 1, 'clip_value': 1.0, 'val_interval': 500, 'log_interval': 100, 'log_param_interval': 500, 'save_interval': 10000, 'max_steps': 20000, 'max_epochs': None}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - optim: {'optimizer': 'AdamW', 'lr': 0.0001, 'weight_decay': 0.1, 'betas': [0.9, 0.98], 'eps': 1e-09, 'normalization_regularization': False, 'bias_regularization': False, 'scheduler': {'num_warmup_steps': 400, 'num_training_steps': 20000, 'decay_factor': 0.01, 'schedule': 'cosine'}, 'cpr_config': {'kappa_init_param': 400, 'kappa_init_method': 'warm_start', 'reg_function': 'l2', 'kappa_update': 1.0}}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - accelerate: {'mixed_precision': 'fp16'}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - model: {'trg_vocab_size': 1, 'seq_vocab_size': 1, 'model_dim': 256, 'max_len': 400, 'num_head': 4, 'n_layers_enc': 4, 'n_layers_dec': 6, 'ff_factor': 4, 'activation': 'silu', 'glu': False, 'softmax_scale': True, 'pos_embedding': True, 'rel_pos_enc': False, 'add_unit_offset': False, 'rms_norm': False, 'resi_dropout': 0.1, 'attn_dropout': 0.1, 'ln_eps': 1e-05, 'use_bias': True, 'learn_ln': True, 'last_zero': False, 'initializer_range': 0.02}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - dataloader: {'generator': {'num_variables': 2, 'max_terms': 4, 'num_realizations': 100, 'allowed_operations': ['+', '-', '*', '/', 'cos', 'log', 'sin', 'exp'], 'real_numbers_realizations': False, 'kmax': 5, 'keep_graph': False, 'keep_data': False, 'real_numbers_variables': False, 'max_powers': 1, 'seed': 1}, 'val_samples': 500, 'test_samples': 200, 'batch_size': 64, 'num_workers': 8}
+[29/10/2024 18:39:06][rank 0][INFO][__main__] - [1m############### LOAD DATA on rank 0[0m

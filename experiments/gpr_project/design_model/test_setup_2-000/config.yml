@@ -1,0 +1,87 @@
+accelerate:
+  mixed_precision: fp16
+dataloader:
+  batch_size: 64
+  data_dir: ./data
+  generator:
+    allowed_operations:
+    - +
+    - '-'
+    - '*'
+    - /
+    keep_data: false
+    keep_graph: false
+    max_const_exponent: 2
+    max_powers: 2
+    max_terms: 3
+    num_realizations: 100
+    num_variables: 3
+    real_const_decimal_places: 2
+    real_constants_max: 10
+    real_constants_min: -10
+    sample_interval:
+    - -10
+    - 10
+    seed: 1
+    use_math_constants: false
+  generator_type: PolynomialGenerator
+  num_workers: 8
+  train_samples: 100
+  valid_samples: 100
+experiment:
+  experiment_name: test_setup_2
+  experiments_base_dir: /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments
+  project_name: gpr_project
+  session_name: design_model
+model:
+  activation: relu
+  add_unit_offset: false
+  attn_dropout: 0.1
+  ff_factor: 4
+  glu: false
+  initializer_range: 0.02
+  last_zero: false
+  learn_ln: true
+  ln_eps: 1.0e-05
+  max_len: 400
+  max_var_pos: 5
+  model_dim: 64
+  n_layers: 4
+  num_head: 4
+  pos_embedding: true
+  rel_pos_enc: false
+  resi_dropout: 0.1
+  rms_norm: false
+  seq_vocab_size: 1
+  softmax_scale: true
+  trg_vocab_size: 1
+  use_bias: true
+optim:
+  betas:
+  - 0.9
+  - 0.98
+  bias_regularization: false
+  cpr_config:
+    kappa_init_method: warm_start
+    kappa_init_param: 400
+    kappa_update: 1.0
+    reg_function: l2
+  eps: 1.0e-09
+  lr: 0.0001
+  normalization_regularization: false
+  optimizer: AdamW
+  scheduler:
+    decay_factor: 0.01
+    num_training_steps: 50000
+    num_warmup_steps: 1000
+    schedule: cosine
+  weight_decay: 0.1
+train:
+  clip_value: 0.1
+  log_interval: 500
+  log_param_interval: 500
+  max_epochs: null
+  max_steps: 50000
+  save_interval: 10000
+  seed: 1
+  val_interval: 100

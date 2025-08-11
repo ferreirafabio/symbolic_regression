@@ -3,16 +3,17 @@
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
+#SBATCH --partition=testdlc_gpu-rtx2080
 #SBATCH --job-name=gpr
 #SBATCH -D .
 #SBATCH --threads-per-core=1
 #SBATCH --time=1:00:00
-#SBATCH --output=/home/frankej/experiments/symreg/output/mpi-out.%j
-#SBATCH --error=/home/frankej/experiments/symreg/error/mpi-err.%j
+#SBATCH --output=/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/log/mpi-out.%j
+#SBATCH --output=/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/log/mpi-err.%j
 
 
-CODE_DIR="/home/frankej/workspace/ScalingSymbolicRegression"
-
+#CODE_DIR="/home/frankej/workspace/ScalingSymbolicRegression"
+CODE_DIR="/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression"
 
 MASTER_ADDR=`scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1`
 # Allow communication over InfiniBand cells.
@@ -52,9 +53,12 @@ cuda12.1
 echo "SLURM_PARTITION=$SLURM_NODELIST"
 
 echo "KISLURM Job"
-source /home/frankej/workspace/ScalingSymbolicRegression/venv/bin/activate
+#source /home/frankej/workspace/ScalingSymbolicRegression/venv/bin/activate
+#/home/ferreira/.miniconda/envs/symreg
+#conda activate symreg
+source /home/ferreira/.miniconda/bin/activate symreg
 
-PYTHON_SCRIPT=/home/frankej/workspace/ScalingSymbolicRegression/train_gpr.py
+PYTHON_SCRIPT=/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/train_gpr.py
 
 for (( i=0; i<$NUM_NODES; i++ )); do
     # Build the command

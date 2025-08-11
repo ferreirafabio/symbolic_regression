@@ -1,5 +1,5 @@
 experiment:
-  experiments_base_dir: /home/frankej/experiments/symreg/
+  experiments_base_dir: /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments
   project_name: gpr_project
   session_name: design_model
   experiment_name: test_setup

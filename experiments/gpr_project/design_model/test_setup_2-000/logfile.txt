@@ -1,0 +1,544 @@
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - #### Load logger on rank 0
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - ########  Accelerate: world size 1 - rank 0
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - [1m######################################################[0m
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - [1m########          START   TRAINING          ##########[0m
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - [1m######################################################[0m
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - ########  Project:    gpr_project
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - ########  Session:    design_model
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - ########  Experiment: test_setup_2
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - save logs and checkpoints in: /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - [1m############### CONFIGURATION[0m
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - experiment: {'experiments_base_dir': '/work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments', 'project_name': 'gpr_project', 'session_name': 'design_model', 'experiment_name': 'test_setup_2'}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - train: {'seed': 1, 'clip_value': 0.1, 'val_interval': 100, 'log_interval': 500, 'log_param_interval': 500, 'save_interval': 10000, 'max_steps': 50000, 'max_epochs': None}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - optim: {'optimizer': 'AdamW', 'lr': 0.0001, 'weight_decay': 0.1, 'betas': [0.9, 0.98], 'eps': 1e-09, 'normalization_regularization': False, 'bias_regularization': False, 'scheduler': {'num_warmup_steps': 1000, 'num_training_steps': 50000, 'decay_factor': 0.01, 'schedule': 'cosine'}, 'cpr_config': {'kappa_init_param': 400, 'kappa_init_method': 'warm_start', 'reg_function': 'l2', 'kappa_update': 1.0}}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - accelerate: {'mixed_precision': 'fp16'}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - model: {'trg_vocab_size': 1, 'seq_vocab_size': 1, 'max_var_pos': 5, 'model_dim': 64, 'max_len': 400, 'num_head': 4, 'n_layers': 4, 'ff_factor': 4, 'activation': 'relu', 'glu': False, 'softmax_scale': True, 'pos_embedding': True, 'rel_pos_enc': False, 'add_unit_offset': False, 'rms_norm': False, 'resi_dropout': 0.1, 'attn_dropout': 0.1, 'ln_eps': 1e-05, 'use_bias': True, 'learn_ln': True, 'last_zero': False, 'initializer_range': 0.02}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - dataloader: {'generator_type': 'PolynomialGenerator', 'generator': {'num_variables': 3, 'max_terms': 3, 'num_realizations': 100, 'allowed_operations': ['+', '-', '*', '/'], 'real_const_decimal_places': 2, 'real_constants_min': -10, 'real_constants_max': 10, 'max_const_exponent': 2, 'use_math_constants': False, 'sample_interval': [-10, 10], 'keep_graph': False, 'keep_data': False, 'max_powers': 2, 'seed': 1}, 'train_samples': 100, 'valid_samples': 100, 'batch_size': 64, 'num_workers': 8, 'data_dir': './data'}
+[29/08/2024 16:05:42][rank 0][INFO][__main__] - [1m############### LOAD DATA on rank 0[0m
+[29/08/2024 16:05:43][rank 0][INFO][__main__] - [1m############### SETUP DATA on rank 0[0m
+[29/08/2024 16:05:43][rank 0][INFO][__main__] - MMAP Read ALL
+[29/08/2024 16:05:43][rank 0][INFO][__main__] - DataLoader for train successfully loaded from data/train_smpls100_s1_n3_t3_dp2_mcFalse_me2_mp2_rcmin-10_rcmax10_ops_div_minus_mul_plus_sample_intervals_-10_10_v1.arrow.
+[29/08/2024 16:05:43][rank 0][INFO][__main__] - Number of train samples: 100
+[29/08/2024 16:05:43][rank 0][INFO][__main__] - Inspecting sample batch for train dataset
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Let's see what's in the data. Sample batch keys: dict_keys(['mantissa', 'exponent', 'in_equation', 'trg_equation', 'trg_len'])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Sample values for mantissa: Shape torch.Size([64, 100, 4]), First few values: tensor([[[ 0.8200, -0.7400,  0.7400, -0.5300],
+         [ 0.8800, -0.7000,  0.6100, -0.9300],
+         [ 0.7400,  0.5700,  0.7500,  0.5700],
+         ...,
+         [-0.6500,  0.7900,  0.7500, -0.7300],
+         [ 0.8200,  0.5700, -0.5200, -0.5200],
+         [-0.6300,  0.6300, -0.5800, -0.6600]],
+
+        [[-0.8000,  0.5600,  0.8200,  0.5400],
+         [ 0.9700, -0.7100,  0.9100, -0.7100],
+         [-0.6000, -0.8800,  0.5400,  0.7200],
+         ...,
+         [ 0.7500, -0.7500, -0.8800, -0.9800],
+         [ 0.8100, -0.8700,  0.6100, -0.5800],
+         [ 0.5200,  0.7800, -0.5200, -0.9200]],
+
+        [[-0.5600,  0.5700,  0.8300, 92.0000],
+         [-0.8700,  0.5700,  0.7500, 92.0000],
+         [ 0.6100, -0.8300,  0.6100, 92.0000],
+         ...,
+         [-0.9700, -0.6300, -0.6400, 92.0000],
+         [-0.7300, -0.8900, -0.5000, 92.0000],
+         [-0.8500,  0.7300, -0.5100, 92.0000]],
+
+        [[ 0.8300,  0.9900, 92.0000, 92.0000],
+         [-0.7600, -0.9100, 92.0000, 92.0000],
+         [ 0.5100,  0.6000, 92.0000, 92.0000],
+         ...,
+         [ 0.9300,  0.5500, 92.0000, 92.0000],
+         [ 0.9200,  0.5500, 92.0000, 92.0000],
+         [-0.6600, -0.7900, 92.0000, 92.0000]],
+
+        [[ 0.5100,  0.5300, -0.8700, -0.7000],
+         [ 0.6900, -0.7100,  0.5700,  0.6200],
+         [-0.9600,  0.5600,  0.5300, -0.8500],
+         ...,
+         [-0.6600,  0.9300,  0.5500, -0.5400],
+         [-0.6100, -0.9700, -0.8000, -0.5900],
+         [ 0.7400,  0.9600, -0.6100, -0.5300]]])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Sample values for exponent: Shape torch.Size([64, 100, 4]), First few values: tensor([[[12.,  3.,  3.,  4.],
+         [10.,  2.,  3.,  2.],
+         [ 8.,  3.,  1.,  4.],
+         ...,
+         [12.,  3.,  3.,  2.],
+         [ 4.,  4., -3.,  3.],
+         [10.,  1.,  4.,  3.]],
+
+        [[15.,  3.,  3.,  3.],
+         [12.,  2.,  3.,  1.],
+         [10.,  0.,  3.,  3.],
+         ...,
+         [15.,  2.,  3.,  3.],
+         [ 8.,  3.,  0.,  2.],
+         [12.,  1.,  3.,  3.]],
+
+        [[ 4.,  1.,  0., 92.],
+         [ 6.,  4., -2., 92.],
+         [ 8.,  2.,  3., 92.],
+         ...,
+         [ 8.,  3.,  3., 92.],
+         [ 5.,  2.,  2., 92.],
+         [ 8.,  3.,  2., 92.]],
+
+        [[ 1.,  2., 92., 92.],
+         [ 2.,  3., 92., 92.],
+         [ 3.,  4., 92., 92.],
+         ...,
+         [ 2.,  4., 92., 92.],
+         [-1.,  1., 92., 92.],
+         [ 0.,  1., 92., 92.]],
+
+        [[ 4.,  3.,  1., -1.],
+         [12.,  3.,  2.,  3.],
+         [13.,  4.,  2.,  3.],
+         ...,
+         [11.,  2.,  4.,  2.],
+         [10.,  2.,  2.,  2.],
+         [ 9.,  3., -1.,  3.]]])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Sample values for in_equation: Shape torch.Size([64, 64]), First few values: tensor([[90, 62, 73, 61, 63, 65, 81, 66, 61, 63, 65, 82, 66, 37, 69, 72, 89, 79,
+         81, 61, 63, 65, 82, 66, 71, 84, 79, 88, 61, 63, 65, 83, 66, 72, 82, 79,
+         85, 38, 70, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 61, 63, 65, 81, 66, 61, 63, 65, 82, 66, 37, 69, 72, 87, 79,
+         80, 61, 63, 65, 81, 66, 61, 63, 65, 82, 66, 61, 63, 65, 83, 66, 72, 81,
+         79, 84, 61, 63, 65, 81, 66, 71, 89, 79, 86, 38, 70, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 61, 63, 65, 81, 66, 37, 69, 82, 79, 83, 61, 63, 65, 81, 66,
+         61, 63, 65, 82, 66, 72, 81, 80, 79, 80, 38, 70, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 80, 79, 84, 82, 61, 63, 65, 81, 66, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 72, 89, 79, 80, 61, 63, 65, 81, 66, 61, 63, 65, 82, 66, 61,
+         63, 65, 83, 66, 64, 65, 82, 66, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92]])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Sample values for trg_equation: Shape torch.Size([64, 64]), First few values: tensor([[  62,   73,   61,   63,   65,   81,   66,   61,   63,   65,   82,   66,
+           37,   69,   72,   89,   79,   81,   61,   63,   65,   82,   66,   71,
+           84,   79,   88,   61,   63,   65,   83,   66,   72,   82,   79,   85,
+           38,   70,   91, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   61,   63,   65,   81,   66,   61,   63,   65,   82,   66,
+           37,   69,   72,   87,   79,   80,   61,   63,   65,   81,   66,   61,
+           63,   65,   82,   66,   61,   63,   65,   83,   66,   72,   81,   79,
+           84,   61,   63,   65,   81,   66,   71,   89,   79,   86,   38,   70,
+           91, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   61,   63,   65,   81,   66,   37,   69,   82,   79,   83,
+           61,   63,   65,   81,   66,   61,   63,   65,   82,   66,   72,   81,
+           80,   79,   80,   38,   70,   91, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   80,   79,   84,   82,   61,   63,   65,   81,   66,   91,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   72,   89,   79,   80,   61,   63,   65,   81,   66,   61,
+           63,   65,   82,   66,   61,   63,   65,   83,   66,   64,   65,   82,
+           66,   91, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100]])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Sample values for trg_len: Shape torch.Size([64]), First few values: tensor([39, 49, 30, 12, 26])
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - MMAP Read ALL
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - DataLoader for valid successfully loaded from data/valid_smpls100_s1_n3_t3_dp2_mcFalse_me2_mp2_rcmin-10_rcmax10_ops_div_minus_mul_plus_sample_intervals_-10_10_v1.arrow.
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Number of valid samples: 100
+[29/08/2024 16:05:48][rank 0][INFO][__main__] - Inspecting sample batch for valid dataset
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Let's see what's in the data. Sample batch keys: dict_keys(['mantissa', 'exponent', 'in_equation', 'trg_equation', 'trg_len'])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Sample values for mantissa: Shape torch.Size([64, 100, 4]), First few values: tensor([[[ 0.9900,  0.8500, -0.9800, 92.0000],
+         [ 0.8100, -0.6700,  0.5700, 92.0000],
+         [ 0.6300,  0.6700,  0.9900, 92.0000],
+         ...,
+         [ 0.5200, -0.9700, -0.8800, 92.0000],
+         [ 0.7600,  0.8400, -0.6100, 92.0000],
+         [ 0.9400,  0.8600,  0.6700, 92.0000]],
+
+        [[ 0.5100,  0.5300, -0.8700, -0.7000],
+         [ 0.6900, -0.7100,  0.5700,  0.6200],
+         [-0.9600,  0.5600,  0.5300, -0.8500],
+         ...,
+         [-0.6600,  0.9300,  0.5500, -0.5400],
+         [-0.6100, -0.9700, -0.8000, -0.5900],
+         [ 0.7400,  0.9600, -0.6100, -0.5300]],
+
+        [[ 0.5200,  0.8200, -0.9100,  0.9900],
+         [ 0.6900, -0.5900,  0.6300,  0.7600],
+         [-0.8700, -0.8500,  0.7200, -0.9800],
+         ...,
+         [-0.5800,  0.6400, -0.5400, -0.8300],
+         [ 0.6800, -0.5600,  0.5000,  0.5700],
+         [-0.9100, -0.6500, -0.7600,  0.7600]],
+
+        [[ 0.6500,  0.9200, -0.8800, 92.0000],
+         [-0.5900, -0.5700, -0.5100, 92.0000],
+         [ 0.5600,  0.9100, -0.8100, 92.0000],
+         ...,
+         [-0.8900, -0.5300,  0.9500, 92.0000],
+         [-0.5100, -0.6100, -0.7700, 92.0000],
+         [-0.5300, -0.9200,  0.5600, 92.0000]],
+
+        [[-0.6300,  0.5800, -0.5800,  0.9300],
+         [ 0.5100,  0.5500,  0.5800, -0.6200],
+         [-0.8000, -0.9200,  0.7900,  0.7300],
+         ...,
+         [-0.8000,  0.9000, -0.9700, -0.7400],
+         [-0.5600, -0.6100,  0.5900, -0.8600],
+         [ 0.9000,  0.7400,  0.9600, -0.7700]]])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Sample values for exponent: Shape torch.Size([64, 100, 4]), First few values: tensor([[[12.,  2.,  3., 92.],
+         [ 6., -1.,  4., 92.],
+         [ 8.,  0.,  3., 92.],
+         ...,
+         [13.,  2.,  3., 92.],
+         [ 7.,  3.,  0., 92.],
+         [ 9.,  3.,  1., 92.]],
+
+        [[ 4.,  3.,  1., -1.],
+         [12.,  3.,  2.,  3.],
+         [13.,  4.,  2.,  3.],
+         ...,
+         [11.,  2.,  4.,  2.],
+         [10.,  2.,  2.,  2.],
+         [ 9.,  3., -1.,  3.]],
+
+        [[ 3.,  3.,  1.,  0.],
+         [ 5.,  4.,  3.,  0.],
+         [ 1.,  2.,  3.,  2.],
+         ...,
+         [ 2.,  3.,  4.,  3.],
+         [ 1.,  3.,  1.,  1.],
+         [-7., -5.,  1.,  1.]],
+
+        [[ 9.,  0.,  3., 92.],
+         [ 6.,  1.,  2., 92.],
+         [ 8.,  1.,  2., 92.],
+         ...,
+         [12.,  4.,  3., 92.],
+         [ 6.,  4., -6., 92.],
+         [11.,  1.,  4., 92.]],
+
+        [[ 8.,  0.,  2.,  2.],
+         [14.,  4.,  1.,  4.],
+         [10.,  2.,  0.,  3.],
+         ...,
+         [ 8.,  3.,  2.,  0.],
+         [14.,  3.,  3.,  3.],
+         [13.,  3.,  2.,  3.]]])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Sample values for in_equation: Shape torch.Size([64, 64]), First few values: tensor([[90, 62, 73, 85, 79, 87, 61, 63, 65, 81, 66, 64, 65, 82, 66, 61, 63, 65,
+         82, 66, 64, 65, 82, 66, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 72, 89, 79, 80, 61, 63, 65, 81, 66, 61, 63, 65, 82, 66, 61,
+         63, 65, 83, 66, 64, 65, 82, 66, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 72, 26, 65, 80, 79, 83, 85, 61, 63, 65, 81, 66, 61, 63, 65,
+         82, 66, 66, 65, 61, 63, 65, 83, 66, 66, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 61, 63, 65, 81, 66, 37, 69, 87, 79, 83, 61, 63, 65, 82, 66,
+         64, 65, 82, 66, 71, 83, 79, 84, 38, 70, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92],
+        [90, 62, 73, 61, 63, 65, 81, 66, 37, 69, 72, 80, 79, 81, 84, 61, 63, 65,
+         81, 66, 71, 88, 79, 85, 61, 63, 65, 82, 66, 61, 63, 65, 83, 66, 64, 65,
+         82, 66, 72, 89, 79, 80, 38, 70, 92, 92, 92, 92, 92, 92, 92, 92, 92, 92,
+         92, 92, 92, 92, 92, 92, 92, 92, 92, 92]])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Sample values for trg_equation: Shape torch.Size([64, 64]), First few values: tensor([[  62,   73,   85,   79,   87,   61,   63,   65,   81,   66,   64,   65,
+           82,   66,   61,   63,   65,   82,   66,   64,   65,   82,   66,   91,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   72,   89,   79,   80,   61,   63,   65,   81,   66,   61,
+           63,   65,   82,   66,   61,   63,   65,   83,   66,   64,   65,   82,
+           66,   91, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   72,   26,   65,   80,   79,   83,   85,   61,   63,   65,
+           81,   66,   61,   63,   65,   82,   66,   66,   65,   61,   63,   65,
+           83,   66,   66,   91, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   61,   63,   65,   81,   66,   37,   69,   87,   79,   83,
+           61,   63,   65,   82,   66,   64,   65,   82,   66,   71,   83,   79,
+           84,   38,   70,   91, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100],
+        [  62,   73,   61,   63,   65,   81,   66,   37,   69,   72,   80,   79,
+           81,   84,   61,   63,   65,   81,   66,   71,   88,   79,   85,   61,
+           63,   65,   82,   66,   61,   63,   65,   83,   66,   64,   65,   82,
+           66,   72,   89,   79,   80,   38,   70,   91, -100, -100, -100, -100,
+         -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100,
+         -100, -100, -100, -100]])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Sample values for trg_len: Shape torch.Size([64]), First few values: tensor([24, 26, 28, 28, 44])
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - [1m############### LOAD MODEL on rank 0[0m
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - #### trainable_parameters 549248
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Optimizer group 0: 57 tensors, 538752 parameters, {'weight_decay': 0.1, 'lr': 0.0001, 'betas': [0.9, 0.98], 'eps': 1e-08, 'amsgrad': False, 'foreach': None, 'maximize': False, 'capturable': False, 'differentiable': False, 'fused': None}
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Optimizer group 1: 112 tensors, 10496 parameters, {'weight_decay': 0.0, 'lr': 0.0001, 'betas': [0.9, 0.98], 'eps': 1e-08, 'amsgrad': False, 'foreach': None, 'maximize': False, 'capturable': False, 'differentiable': False, 'fused': None}
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Start training for 50000 steps
+[29/08/2024 16:05:49][rank 0][INFO][__main__] - Start epoch 0
+[29/08/2024 16:05:52][rank 0][INFO][__main__] - Validation at step 0 - Mean Loss: 4.5573 - Mean PPL: 95.3952 - Mean Acc: 0.0080 - Mean Solved: 0.0000 - Mean MSE: 0.0000 - Mean Valid: 0.0000 - Samples: 100
+[29/08/2024 16:05:52][rank 0][INFO][__main__] - Step 0 - Loss: 4.5577 - Acc: 0.0080 - Solved: 0.0000
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.accelerator] - Saving current state to /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Model weights saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/pytorch_model.bin
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Optimizer state saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/optimizer.bin
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Sampler state for dataloader 0 saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/sampler.bin
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Sampler state for dataloader 1 saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/sampler_1.bin
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Gradient scaler state saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/scaler.pt
+[29/08/2024 16:05:53][rank 0][INFO][accelerate.checkpointing] - Random states saved in /work/dlclarge2/ferreira-symreg/ScalingSymbolicRegression/experiments/gpr_project/design_model/test_setup_2-000/states/random_states_0.pkl
+[29/08/2024 16:05:53][rank 0][INFO][__main__] - ### End epoch 0
+[29/08/2024 16:05:53][rank 0][INFO][__main__] - ### Mean Train Loss: 4.557736396789551
+[29/08/2024 16:05:53][rank 0][INFO][__main__] - Start epoch 1
+[29/08/2024 16:05:55][rank 0][INFO][__main__] - ### End epoch 1
+[29/08/2024 16:05:55][rank 0][INFO][__main__] - ### Mean Train Loss: 4.557147026062012
+[29/08/2024 16:05:55][rank 0][INFO][__main__] - Start epoch 2
+[29/08/2024 16:05:56][rank 0][INFO][__main__] - ### End epoch 2
+[29/08/2024 16:05:56][rank 0][INFO][__main__] - ### Mean Train Loss: 4.556772232055664
+[29/08/2024 16:05:56][rank 0][INFO][__main__] - Start epoch 3
+[29/08/2024 16:05:57][rank 0][INFO][__main__] - ### End epoch 3
+[29/08/2024 16:05:57][rank 0][INFO][__main__] - ### Mean Train Loss: 4.5585198402404785
+[29/08/2024 16:05:57][rank 0][INFO][__main__] - Start epoch 4
+[29/08/2024 16:05:59][rank 0][INFO][__main__] - ### End epoch 4
+[29/08/2024 16:05:59][rank 0][INFO][__main__] - ### Mean Train Loss: 4.557753562927246
+[29/08/2024 16:05:59][rank 0][INFO][__main__] - Start epoch 5
+[29/08/2024 16:06:00][rank 0][INFO][__main__] - ### End epoch 5
+[29/08/2024 16:06:00][rank 0][INFO][__main__] - ### Mean Train Loss: 4.557612895965576
+[29/08/2024 16:06:00][rank 0][INFO][__main__] - Start epoch 6
+[29/08/2024 16:06:01][rank 0][INFO][__main__] - ### End epoch 6
+[29/08/2024 16:06:01][rank 0][INFO][__main__] - ### Mean Train Loss: 4.557483196258545
+[29/08/2024 16:06:01][rank 0][INFO][__main__] - Start epoch 7
+[29/08/2024 16:06:03][rank 0][INFO][__main__] - ### End epoch 7
+[29/08/2024 16:06:03][rank 0][INFO][__main__] - ### Mean Train Loss: 4.556278705596924
+[29/08/2024 16:06:03][rank 0][INFO][__main__] - Start epoch 8
+[29/08/2024 16:06:04][rank 0][INFO][__main__] - ### End epoch 8
+[29/08/2024 16:06:04][rank 0][INFO][__main__] - ### Mean Train Loss: 4.556121349334717
+[29/08/2024 16:06:04][rank 0][INFO][__main__] - Start epoch 9
+[29/08/2024 16:06:05][rank 0][INFO][__main__] - ### End epoch 9
+[29/08/2024 16:06:05][rank 0][INFO][__main__] - ### Mean Train Loss: 4.554264545440674
+[29/08/2024 16:06:05][rank 0][INFO][__main__] - Start epoch 10
+[29/08/2024 16:06:07][rank 0][INFO][__main__] - ### End epoch 10
+[29/08/2024 16:06:07][rank 0][INFO][__main__] - ### Mean Train Loss: 4.555742263793945
+[29/08/2024 16:06:07][rank 0][INFO][__main__] - Start epoch 11
+[29/08/2024 16:06:08][rank 0][INFO][__main__] - ### End epoch 11
+[29/08/2024 16:06:08][rank 0][INFO][__main__] - ### Mean Train Loss: 4.553502082824707
+[29/08/2024 16:06:08][rank 0][INFO][__main__] - Start epoch 12
+[29/08/2024 16:06:09][rank 0][INFO][__main__] - ### End epoch 12
+[29/08/2024 16:06:09][rank 0][INFO][__main__] - ### Mean Train Loss: 4.553674221038818
+[29/08/2024 16:06:09][rank 0][INFO][__main__] - Start epoch 13
+[29/08/2024 16:06:11][rank 0][INFO][__main__] - ### End epoch 13
+[29/08/2024 16:06:11][rank 0][INFO][__main__] - ### Mean Train Loss: 4.552590370178223
+[29/08/2024 16:06:11][rank 0][INFO][__main__] - Start epoch 14
+[29/08/2024 16:06:12][rank 0][INFO][__main__] - ### End epoch 14
+[29/08/2024 16:06:12][rank 0][INFO][__main__] - ### Mean Train Loss: 4.552621841430664
+[29/08/2024 16:06:12][rank 0][INFO][__main__] - Start epoch 15
+[29/08/2024 16:06:13][rank 0][INFO][__main__] - ### End epoch 15
+[29/08/2024 16:06:13][rank 0][INFO][__main__] - ### Mean Train Loss: 4.552350044250488
+[29/08/2024 16:06:13][rank 0][INFO][__main__] - Start epoch 16
+[29/08/2024 16:06:15][rank 0][INFO][__main__] - ### End epoch 16
+[29/08/2024 16:06:15][rank 0][INFO][__main__] - ### Mean Train Loss: 4.551422119140625
+[29/08/2024 16:06:15][rank 0][INFO][__main__] - Start epoch 17
+[29/08/2024 16:06:16][rank 0][INFO][__main__] - ### End epoch 17
+[29/08/2024 16:06:16][rank 0][INFO][__main__] - ### Mean Train Loss: 4.54988431930542
+[29/08/2024 16:06:16][rank 0][INFO][__main__] - Start epoch 18
+[29/08/2024 16:06:17][rank 0][INFO][__main__] - ### End epoch 18
+[29/08/2024 16:06:17][rank 0][INFO][__main__] - ### Mean Train Loss: 4.549162864685059
+[29/08/2024 16:06:17][rank 0][INFO][__main__] - Start epoch 19
+[29/08/2024 16:06:19][rank 0][INFO][__main__] - ### End epoch 19
+[29/08/2024 16:06:19][rank 0][INFO][__main__] - ### Mean Train Loss: 4.548176288604736
+[29/08/2024 16:06:19][rank 0][INFO][__main__] - Start epoch 20
+[29/08/2024 16:06:20][rank 0][INFO][__main__] - ### End epoch 20
+[29/08/2024 16:06:20][rank 0][INFO][__main__] - ### Mean Train Loss: 4.545271873474121
+[29/08/2024 16:06:20][rank 0][INFO][__main__] - Start epoch 21
+[29/08/2024 16:06:21][rank 0][INFO][__main__] - ### End epoch 21
+[29/08/2024 16:06:21][rank 0][INFO][__main__] - ### Mean Train Loss: 4.54512357711792
+[29/08/2024 16:06:21][rank 0][INFO][__main__] - Start epoch 22
+[29/08/2024 16:06:23][rank 0][INFO][__main__] - ### End epoch 22
+[29/08/2024 16:06:23][rank 0][INFO][__main__] - ### Mean Train Loss: 4.543381690979004
+[29/08/2024 16:06:23][rank 0][INFO][__main__] - Start epoch 23
+[29/08/2024 16:06:24][rank 0][INFO][__main__] - ### End epoch 23
+[29/08/2024 16:06:24][rank 0][INFO][__main__] - ### Mean Train Loss: 4.54154634475708
+[29/08/2024 16:06:24][rank 0][INFO][__main__] - Start epoch 24
+[29/08/2024 16:06:25][rank 0][INFO][__main__] - ### End epoch 24
+[29/08/2024 16:06:25][rank 0][INFO][__main__] - ### Mean Train Loss: 4.539677619934082
+[29/08/2024 16:06:25][rank 0][INFO][__main__] - Start epoch 25
+[29/08/2024 16:06:27][rank 0][INFO][__main__] - ### End epoch 25
+[29/08/2024 16:06:27][rank 0][INFO][__main__] - ### Mean Train Loss: 4.538624286651611
+[29/08/2024 16:06:27][rank 0][INFO][__main__] - Start epoch 26
+[29/08/2024 16:06:28][rank 0][INFO][__main__] - ### End epoch 26
+[29/08/2024 16:06:28][rank 0][INFO][__main__] - ### Mean Train Loss: 4.538064956665039
+[29/08/2024 16:06:28][rank 0][INFO][__main__] - Start epoch 27
+[29/08/2024 16:06:29][rank 0][INFO][__main__] - ### End epoch 27
+[29/08/2024 16:06:29][rank 0][INFO][__main__] - ### Mean Train Loss: 4.537388324737549
+[29/08/2024 16:06:29][rank 0][INFO][__main__] - Start epoch 28
+[29/08/2024 16:06:31][rank 0][INFO][__main__] - ### End epoch 28
+[29/08/2024 16:06:31][rank 0][INFO][__main__] - ### Mean Train Loss: 4.5348005294799805
+[29/08/2024 16:06:31][rank 0][INFO][__main__] - Start epoch 29
+[29/08/2024 16:06:32][rank 0][INFO][__main__] - ### End epoch 29
+[29/08/2024 16:06:32][rank 0][INFO][__main__] - ### Mean Train Loss: 4.532655239105225
+[29/08/2024 16:06:32][rank 0][INFO][__main__] - Start epoch 30
+[29/08/2024 16:06:33][rank 0][INFO][__main__] - ### End epoch 30
+[29/08/2024 16:06:33][rank 0][INFO][__main__] - ### Mean Train Loss: 4.530333042144775
+[29/08/2024 16:06:33][rank 0][INFO][__main__] - Start epoch 31
+[29/08/2024 16:06:35][rank 0][INFO][__main__] - ### End epoch 31
+[29/08/2024 16:06:35][rank 0][INFO][__main__] - ### Mean Train Loss: 4.530237674713135
+[29/08/2024 16:06:35][rank 0][INFO][__main__] - Start epoch 32
+[29/08/2024 16:06:36][rank 0][INFO][__main__] - ### End epoch 32
+[29/08/2024 16:06:36][rank 0][INFO][__main__] - ### Mean Train Loss: 4.527430534362793
+[29/08/2024 16:06:36][rank 0][INFO][__main__] - Start epoch 33
+[29/08/2024 16:06:37][rank 0][INFO][__main__] - ### End epoch 33
+[29/08/2024 16:06:37][rank 0][INFO][__main__] - ### Mean Train Loss: 4.525169372558594
+[29/08/2024 16:06:37][rank 0][INFO][__main__] - Start epoch 34
+[29/08/2024 16:06:39][rank 0][INFO][__main__] - ### End epoch 34
+[29/08/2024 16:06:39][rank 0][INFO][__main__] - ### Mean Train Loss: 4.523193836212158
+[29/08/2024 16:06:39][rank 0][INFO][__main__] - Start epoch 35
+[29/08/2024 16:06:40][rank 0][INFO][__main__] - ### End epoch 35
+[29/08/2024 16:06:40][rank 0][INFO][__main__] - ### Mean Train Loss: 4.520155429840088
+[29/08/2024 16:06:40][rank 0][INFO][__main__] - Start epoch 36
+[29/08/2024 16:06:41][rank 0][INFO][__main__] - ### End epoch 36
+[29/08/2024 16:06:41][rank 0][INFO][__main__] - ### Mean Train Loss: 4.5184102058410645
+[29/08/2024 16:06:41][rank 0][INFO][__main__] - Start epoch 37
+[29/08/2024 16:06:43][rank 0][INFO][__main__] - ### End epoch 37
+[29/08/2024 16:06:43][rank 0][INFO][__main__] - ### Mean Train Loss: 4.5174102783203125
+[29/08/2024 16:06:43][rank 0][INFO][__main__] - Start epoch 38
+[29/08/2024 16:06:44][rank 0][INFO][__main__] - ### End epoch 38
+[29/08/2024 16:06:44][rank 0][INFO][__main__] - ### Mean Train Loss: 4.51516580581665
+[29/08/2024 16:06:44][rank 0][INFO][__main__] - Start epoch 39
+[29/08/2024 16:06:45][rank 0][INFO][__main__] - ### End epoch 39
+[29/08/2024 16:06:45][rank 0][INFO][__main__] - ### Mean Train Loss: 4.513117790222168
+[29/08/2024 16:06:45][rank 0][INFO][__main__] - Start epoch 40
+[29/08/2024 16:06:47][rank 0][INFO][__main__] - ### End epoch 40
+[29/08/2024 16:06:47][rank 0][INFO][__main__] - ### Mean Train Loss: 4.510879993438721
+[29/08/2024 16:06:47][rank 0][INFO][__main__] - Start epoch 41
+[29/08/2024 16:06:48][rank 0][INFO][__main__] - ### End epoch 41
+[29/08/2024 16:06:48][rank 0][INFO][__main__] - ### Mean Train Loss: 4.508145809173584
+[29/08/2024 16:06:48][rank 0][INFO][__main__] - Start epoch 42
+[29/08/2024 16:06:49][rank 0][INFO][__main__] - ### End epoch 42
+[29/08/2024 16:06:49][rank 0][INFO][__main__] - ### Mean Train Loss: 4.505510330200195
+[29/08/2024 16:06:49][rank 0][INFO][__main__] - Start epoch 43
+[29/08/2024 16:06:51][rank 0][INFO][__main__] - ### End epoch 43
+[29/08/2024 16:06:51][rank 0][INFO][__main__] - ### Mean Train Loss: 4.503712177276611
+[29/08/2024 16:06:51][rank 0][INFO][__main__] - Start epoch 44
+[29/08/2024 16:06:52][rank 0][INFO][__main__] - ### End epoch 44
+[29/08/2024 16:06:52][rank 0][INFO][__main__] - ### Mean Train Loss: 4.500406265258789
+[29/08/2024 16:06:52][rank 0][INFO][__main__] - Start epoch 45
+[29/08/2024 16:06:53][rank 0][INFO][__main__] - ### End epoch 45
+[29/08/2024 16:06:53][rank 0][INFO][__main__] - ### Mean Train Loss: 4.498376369476318
+[29/08/2024 16:06:53][rank 0][INFO][__main__] - Start epoch 46
+[29/08/2024 16:06:55][rank 0][INFO][__main__] - ### End epoch 46
+[29/08/2024 16:06:55][rank 0][INFO][__main__] - ### Mean Train Loss: 4.494287490844727
+[29/08/2024 16:06:55][rank 0][INFO][__main__] - Start epoch 47
+[29/08/2024 16:06:56][rank 0][INFO][__main__] - ### End epoch 47
+[29/08/2024 16:06:56][rank 0][INFO][__main__] - ### Mean Train Loss: 4.493515968322754
+[29/08/2024 16:06:56][rank 0][INFO][__main__] - Start epoch 48
+[29/08/2024 16:06:57][rank 0][INFO][__main__] - ### End epoch 48
+[29/08/2024 16:06:57][rank 0][INFO][__main__] - ### Mean Train Loss: 4.490897178649902
+[29/08/2024 16:06:57][rank 0][INFO][__main__] - Start epoch 49
+[29/08/2024 16:06:59][rank 0][INFO][__main__] - ### End epoch 49
+[29/08/2024 16:06:59][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4872260093688965
+[29/08/2024 16:06:59][rank 0][INFO][__main__] - Start epoch 50
+[29/08/2024 16:07:00][rank 0][INFO][__main__] - ### End epoch 50
+[29/08/2024 16:07:00][rank 0][INFO][__main__] - ### Mean Train Loss: 4.485774040222168
+[29/08/2024 16:07:00][rank 0][INFO][__main__] - Start epoch 51
+[29/08/2024 16:07:01][rank 0][INFO][__main__] - ### End epoch 51
+[29/08/2024 16:07:01][rank 0][INFO][__main__] - ### Mean Train Loss: 4.480825901031494
+[29/08/2024 16:07:01][rank 0][INFO][__main__] - Start epoch 52
+[29/08/2024 16:07:03][rank 0][INFO][__main__] - ### End epoch 52
+[29/08/2024 16:07:03][rank 0][INFO][__main__] - ### Mean Train Loss: 4.478971481323242
+[29/08/2024 16:07:03][rank 0][INFO][__main__] - Start epoch 53
+[29/08/2024 16:07:04][rank 0][INFO][__main__] - ### End epoch 53
+[29/08/2024 16:07:04][rank 0][INFO][__main__] - ### Mean Train Loss: 4.476250648498535
+[29/08/2024 16:07:04][rank 0][INFO][__main__] - Start epoch 54
+[29/08/2024 16:07:05][rank 0][INFO][__main__] - ### End epoch 54
+[29/08/2024 16:07:06][rank 0][INFO][__main__] - ### Mean Train Loss: 4.472975730895996
+[29/08/2024 16:07:06][rank 0][INFO][__main__] - Start epoch 55
+[29/08/2024 16:07:07][rank 0][INFO][__main__] - ### End epoch 55
+[29/08/2024 16:07:07][rank 0][INFO][__main__] - ### Mean Train Loss: 4.470893859863281
+[29/08/2024 16:07:07][rank 0][INFO][__main__] - Start epoch 56
+[29/08/2024 16:07:08][rank 0][INFO][__main__] - ### End epoch 56
+[29/08/2024 16:07:08][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4665422439575195
+[29/08/2024 16:07:08][rank 0][INFO][__main__] - Start epoch 57
+[29/08/2024 16:07:10][rank 0][INFO][__main__] - ### End epoch 57
+[29/08/2024 16:07:10][rank 0][INFO][__main__] - ### Mean Train Loss: 4.463538646697998
+[29/08/2024 16:07:10][rank 0][INFO][__main__] - Start epoch 58
+[29/08/2024 16:07:11][rank 0][INFO][__main__] - ### End epoch 58
+[29/08/2024 16:07:11][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4610276222229
+[29/08/2024 16:07:11][rank 0][INFO][__main__] - Start epoch 59
+[29/08/2024 16:07:12][rank 0][INFO][__main__] - ### End epoch 59
+[29/08/2024 16:07:12][rank 0][INFO][__main__] - ### Mean Train Loss: 4.457010746002197
+[29/08/2024 16:07:12][rank 0][INFO][__main__] - Start epoch 60
+[29/08/2024 16:07:14][rank 0][INFO][__main__] - ### End epoch 60
+[29/08/2024 16:07:14][rank 0][INFO][__main__] - ### Mean Train Loss: 4.453435897827148
+[29/08/2024 16:07:14][rank 0][INFO][__main__] - Start epoch 61
+[29/08/2024 16:07:15][rank 0][INFO][__main__] - ### End epoch 61
+[29/08/2024 16:07:15][rank 0][INFO][__main__] - ### Mean Train Loss: 4.450367450714111
+[29/08/2024 16:07:15][rank 0][INFO][__main__] - Start epoch 62
+[29/08/2024 16:07:16][rank 0][INFO][__main__] - ### End epoch 62
+[29/08/2024 16:07:16][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4471821784973145
+[29/08/2024 16:07:16][rank 0][INFO][__main__] - Start epoch 63
+[29/08/2024 16:07:18][rank 0][INFO][__main__] - ### End epoch 63
+[29/08/2024 16:07:18][rank 0][INFO][__main__] - ### Mean Train Loss: 4.444756984710693
+[29/08/2024 16:07:18][rank 0][INFO][__main__] - Start epoch 64
+[29/08/2024 16:07:19][rank 0][INFO][__main__] - ### End epoch 64
+[29/08/2024 16:07:19][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4408488273620605
+[29/08/2024 16:07:19][rank 0][INFO][__main__] - Start epoch 65
+[29/08/2024 16:07:20][rank 0][INFO][__main__] - ### End epoch 65
+[29/08/2024 16:07:20][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4377851486206055
+[29/08/2024 16:07:20][rank 0][INFO][__main__] - Start epoch 66
+[29/08/2024 16:07:22][rank 0][INFO][__main__] - ### End epoch 66
+[29/08/2024 16:07:22][rank 0][INFO][__main__] - ### Mean Train Loss: 4.433762550354004
+[29/08/2024 16:07:22][rank 0][INFO][__main__] - Start epoch 67
+[29/08/2024 16:07:23][rank 0][INFO][__main__] - ### End epoch 67
+[29/08/2024 16:07:23][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4312424659729
+[29/08/2024 16:07:23][rank 0][INFO][__main__] - Start epoch 68
+[29/08/2024 16:07:24][rank 0][INFO][__main__] - ### End epoch 68
+[29/08/2024 16:07:24][rank 0][INFO][__main__] - ### Mean Train Loss: 4.425520420074463
+[29/08/2024 16:07:24][rank 0][INFO][__main__] - Start epoch 69
+[29/08/2024 16:07:26][rank 0][INFO][__main__] - ### End epoch 69
+[29/08/2024 16:07:26][rank 0][INFO][__main__] - ### Mean Train Loss: 4.424267768859863
+[29/08/2024 16:07:26][rank 0][INFO][__main__] - Start epoch 70
+[29/08/2024 16:07:27][rank 0][INFO][__main__] - ### End epoch 70
+[29/08/2024 16:07:27][rank 0][INFO][__main__] - ### Mean Train Loss: 4.420186996459961
+[29/08/2024 16:07:27][rank 0][INFO][__main__] - Start epoch 71
+[29/08/2024 16:07:28][rank 0][INFO][__main__] - ### End epoch 71
+[29/08/2024 16:07:28][rank 0][INFO][__main__] - ### Mean Train Loss: 4.416165351867676
+[29/08/2024 16:07:28][rank 0][INFO][__main__] - Start epoch 72
+[29/08/2024 16:07:30][rank 0][INFO][__main__] - ### End epoch 72
+[29/08/2024 16:07:30][rank 0][INFO][__main__] - ### Mean Train Loss: 4.412421703338623
+[29/08/2024 16:07:30][rank 0][INFO][__main__] - Start epoch 73
+[29/08/2024 16:07:31][rank 0][INFO][__main__] - ### End epoch 73
+[29/08/2024 16:07:31][rank 0][INFO][__main__] - ### Mean Train Loss: 4.410000801086426
+[29/08/2024 16:07:31][rank 0][INFO][__main__] - Start epoch 74
+[29/08/2024 16:07:32][rank 0][INFO][__main__] - ### End epoch 74
+[29/08/2024 16:07:32][rank 0][INFO][__main__] - ### Mean Train Loss: 4.405052185058594
+[29/08/2024 16:07:32][rank 0][INFO][__main__] - Start epoch 75
+[29/08/2024 16:07:34][rank 0][INFO][__main__] - ### End epoch 75
+[29/08/2024 16:07:34][rank 0][INFO][__main__] - ### Mean Train Loss: 4.4021196365356445
+[29/08/2024 16:07:34][rank 0][INFO][__main__] - Start epoch 76
+[29/08/2024 16:07:35][rank 0][INFO][__main__] - ### End epoch 76
+[29/08/2024 16:07:35][rank 0][INFO][__main__] - ### Mean Train Loss: 4.397752285003662
+[29/08/2024 16:07:35][rank 0][INFO][__main__] - Start epoch 77
+[29/08/2024 16:07:36][rank 0][INFO][__main__] - ### End epoch 77
+[29/08/2024 16:07:36][rank 0][INFO][__main__] - ### Mean Train Loss: 4.394969940185547
+[29/08/2024 16:07:36][rank 0][INFO][__main__] - Start epoch 78
+[29/08/2024 16:07:38][rank 0][INFO][__main__] - ### End epoch 78
+[29/08/2024 16:07:38][rank 0][INFO][__main__] - ### Mean Train Loss: 4.391706466674805
+[29/08/2024 16:07:38][rank 0][INFO][__main__] - Start epoch 79
+[29/08/2024 16:07:39][rank 0][INFO][__main__] - ### End epoch 79
+[29/08/2024 16:07:39][rank 0][INFO][__main__] - ### Mean Train Loss: 4.38803243637085
+[29/08/2024 16:07:39][rank 0][INFO][__main__] - Start epoch 80
+[29/08/2024 16:07:40][rank 0][INFO][__main__] - ### End epoch 80
+[29/08/2024 16:07:40][rank 0][INFO][__main__] - ### Mean Train Loss: 4.384028911590576
+[29/08/2024 16:07:40][rank 0][INFO][__main__] - Start epoch 81

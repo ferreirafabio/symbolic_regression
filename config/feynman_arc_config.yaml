@@ -16,7 +16,7 @@ dataloader:
         keep_data: False
         max_powers: 4
         seed: 1
-        max_depth: 3
+        max_depth: 7
         nesting_probability: 0.8
         unary_operation_probability: 0.2
         exponent_probability: 0.1
