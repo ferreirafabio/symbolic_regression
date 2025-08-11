@@ -4,10 +4,6 @@
 Collaborators: Jörg Franke, Arber Zela, Frank Hutter
 ____
 
-other names:
-GPSR - Generative Pretrained Symbolic Regression
-PSR - Pretrained Symbolic Regression
-
 
 
 ## Setup Environments
