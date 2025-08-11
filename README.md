@@ -1,6 +1,6 @@
 
 
-# GPR - Generative Pretrained Regression
+Generative Pretrained Symbolic Regression
 Collaborators: Jörg Franke, Arber Zela, Frank Hutter
 ____
 
