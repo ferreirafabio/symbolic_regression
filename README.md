@@ -4,6 +4,7 @@
 Collaborators: Jörg Franke, Arber Zela, Frank Hutter
 ____
 
+We frame symbolic regression as explanatory generation: from numeric realizations of an unknown law to a human-readable LaTeX equation. The input is a table of variable assignments with corresponding target values; the output is a concise symbolic expression in LaTeX that explains the mapping. We train a scalable encoder–decoder that (i) encodes the 2D table (samples × variables) with axial/set attention and (ii) decodes LaTeX tokens, predicting constants digit-wise in scientific notation (mantissa/exponent). A synthetic data process samples equations and realizations with controllable difficulty (curriculum from linear forms to compositional expressions, optionally approaching ODE structure), adds stochastic perturbations and draws from a broad operator set and mathematical constants. We rely on sympy for equation generation and simplification.
 
 
 ## Setup Environments
