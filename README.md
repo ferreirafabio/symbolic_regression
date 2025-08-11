@@ -1,6 +1,6 @@
 
 
-Generative Pretrained Symbolic Regression
+# Generative Pretrained Symbolic Regression: From Data to Latex Equations
 Collaborators: Jörg Franke, Arber Zela, Frank Hutter
 ____
 
